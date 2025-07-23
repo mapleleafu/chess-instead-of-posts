@@ -1,0 +1,5 @@
+.scaffold-finite-scroll,
+#ember36,
+.scaffold-layout__aside {
+  display: none !important;
+}
