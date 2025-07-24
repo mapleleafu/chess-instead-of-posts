@@ -9,14 +9,39 @@
   },
   "content_scripts": [
     {
-      "css": ["styles/hide.css"],
-      "matches": ["*://*.linkedin.com/*"],
+      "css": [
+        "styles/hide.css"
+      ],
+      "matches": [
+        "*://*.linkedin.com/*"
+      ],
       "run_at": "document_start"
     },
     {
-      "js": ["scripts/content.js"],
-      "matches": ["*://*.linkedin.com/*"],
+      "js": [
+        "libs/jquery-3.5.1.min.js",
+        "libs/chess.js",
+        "libs/chessboard-1.0.0.js",
+        "scripts/content.js"
+      ],
+      "css": [
+        "libs/chessboard-1.0.0.css"
+      ],
+      "matches": [
+        "*://*.linkedin.com/*"
+      ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "libs/*",
+        "libs/img/chesspieces/*"
+      ],
+      "matches": [
+        "*://*.linkedin.com/*"
+      ]
     }
   ]
 }
