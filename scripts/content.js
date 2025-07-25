@@ -1,6 +1,3 @@
-const postClassName = ".scaffold-finite-scroll";
-const dropdownId = "#ember36";
-const sidebarClass = ".scaffold-layout__aside";
 const maxRetries = 5;
 let tryCount = 0;
 let board = null;
@@ -55,15 +52,17 @@ function removeRedSquares() {
 
 async function main() {
   if (!checkSite()) return;
-
-  Promise.resolve(await removeElements()).then(() => {
-    setTimeout(createChessboard, 100);
-  });
+  createChessboard();
 }
 
 function createChessboard() {
   const mainFeed = document.querySelector("main");
   if (!mainFeed) return;
+
+  const existingScroll = document.querySelector(postClassName);
+  if (existingScroll) {
+    existingScroll.remove();
+  }
 
   const ChessConstructor = Chess || window.Chess;
 
@@ -105,6 +104,7 @@ function createChessboard() {
     <div style="margin-top: 20px;">
       <button id="resetBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Reset</button>
       <button id="flipBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Flip Board</button>
+      <button id="zenBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Zen Mode</button>
     </div>
     <div id="status" style="margin-top: 10px;"></div>
   `;
@@ -137,7 +137,48 @@ function createChessboard() {
     board.flip();
   });
 
+  document.getElementById("zenBtn").addEventListener("click", () => {
+    toggleZenMode();
+  });
+
   updateStatus();
+}
+
+function toggleZenMode() {
+  const zenMode = document.getElementById("zenMode");
+  const chessContainer = document.getElementById("chess-container");
+  
+  if (zenMode) {
+    const mainFeed = document.querySelector("main");
+    mainFeed.appendChild(chessContainer);
+    zenMode.remove();
+    document.body.style.overflow = "auto";
+  } else {
+    const zenContainer = document.createElement("div");
+    zenContainer.id = "zenMode";
+    zenContainer.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9999;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    `;
+    
+    zenContainer.appendChild(chessContainer);
+    document.body.appendChild(zenContainer);
+    document.body.style.overflow = "hidden";
+    
+    zenContainer.addEventListener('click', (e) => {
+      if (e.target === zenContainer) {
+        toggleZenMode();
+      }
+    });
+  }
 }
 
 function onDragStart(square, piece, position, orientation) {
@@ -236,32 +277,6 @@ function updateStatus() {
   }
 
   status.textContent = statusText;
-}
-
-async function removeElements() {
-  const posts = document.querySelector(postClassName);
-  const dropdown = document.querySelector(dropdownId);
-  const sidebar = document.querySelector(sidebarClass);
-  console.log(`tryCount: ${tryCount}, maxRetries: ${maxRetries}`);
-  try {
-    if (posts) {
-      console.log("Posts found and removing...");
-      posts.remove();
-      dropdown?.remove();
-      sidebar?.remove();
-      tryCount = 0;
-    } else {
-      console.log("Posts not found, retrying in 1 second...");
-      setTimeout(() => {
-        if (tryCount < maxRetries) {
-          removeElements();
-          tryCount++;
-        }
-      }, 1000);
-    }
-  } catch (error) {
-    console.error("Error occurred:", error);
-  }
 }
 
 const observer = new MutationObserver((mutations) => {
