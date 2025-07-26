@@ -1,10 +1,10 @@
 {
-  "name": "Hello Extensions of the world!",
-  "description": "Base Level Extension",
+  "name": "Chess Instead of Posts",
+  "description": "Browser extension that blocks LinkedIn feed and shows daily chess puzzles instead.",
   "version": "1.0",
   "manifest_version": 3,
   "action": {
-    "default_popup": "hello.html",
+    "default_popup": "popup.html",
     "default_icon": "hello_extensions.png"
   },
   "content_scripts": [
@@ -34,11 +34,17 @@
       "run_at": "document_idle"
     }
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage"
+  ],
   "web_accessible_resources": [
     {
       "resources": [
         "libs/*",
-        "libs/img/chesspieces/*"
+        "static/*"
       ],
       "matches": [
         "*://*.linkedin.com/*"

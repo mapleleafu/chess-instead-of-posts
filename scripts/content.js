@@ -1,61 +1,69 @@
-const maxRetries = 5;
-let tryCount = 0;
 let board = null;
 let game = null;
-
-const whiteSquareGrey = "rgba(169, 169, 169, 1)";
-const blackSquareGrey = "rgba(105, 105, 105, 1)";
-const checkSquareRed =
-  "radial-gradient(ellipse at center, rgb(255, 0, 0) 0%, rgb(231, 0, 0) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%)";
 
 function checkSite() {
   return window.location.href.includes("linkedin.com/feed");
 }
 
-function putGreySquare(square) {
+function highlightSquare(square) {
   const squareEl = document.querySelector(`#board .square-${square}`);
   if (!squareEl) return;
 
-  let background = whiteSquareGrey;
-  if (squareEl.classList.contains("black-3c85d")) {
-    background = blackSquareGrey;
+  const hasPiece = squareEl.querySelector(".piece-417db") !== null;
+  if (hasPiece) {
+    squareEl.style.backgroundImage = "radial-gradient(transparent 0%, transparent 79%, rgba(20, 85, 0, 0.3) 80%)";
+  } else {
+    squareEl.style.backgroundImage = "radial-gradient(rgba(20, 85, 30, 0.5) 19%, rgba(0, 0, 0, 0) 20%)";
   }
-
-  squareEl.style.background = background;
 }
 
-function putRedSquare(square) {
+function removeHighlight() {
+  const squares = document.querySelectorAll("#board .square-55d63");
+  squares.forEach((square) => {
+    if (
+      square.style.backgroundImage &&
+      (square.style.backgroundImage.includes("rgba(20, 85, 30, 0.5)") ||
+        square.style.backgroundImage.includes("rgba(20, 85, 0, 0.3)"))
+    ) {
+      square.style.backgroundImage = "";
+    }
+  });
+}
+
+function highlightCheck(square) {
   const squareEl = document.querySelector(`#board .square-${square}`);
   if (!squareEl) return;
 
-  squareEl.style.background = checkSquareRed;
+  squareEl.style.backgroundImage =
+    "radial-gradient(ellipse at center, rgb(255, 0, 0) 0%, rgb(231, 0, 0) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%)";
 }
 
-function removeGreySquares() {
+function removeCheckHighlight() {
   const squares = document.querySelectorAll("#board .square-55d63");
   squares.forEach((square) => {
-    const bg = square.style.background;
-    if (bg.includes("169, 169, 169") || bg.includes("105, 105, 105")) {
-      square.style.background = "";
+    if (square.style.backgroundImage && square.style.backgroundImage.includes("255, 0, 0")) {
+      square.style.backgroundImage = "";
     }
   });
 }
 
-function removeRedSquares() {
-  const squares = document.querySelectorAll("#board .square-55d63");
-  squares.forEach((square) => {
-    if (square.style.background.includes("255, 0, 0")) {
-      square.style.background = "";
-    }
-  });
+async function getDailyFen() {
+  const startTime = performance.now();
+  const result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
+
+  //TODO: Retry fetching result.PUZZLES from storage; if it fails, load puzzles into storage.
+
+  const today = new Date().setHours(0, 0, 0, 0);
+  const daysSinceRelease = Math.floor((today - RELEASE_DATE) / (1000 * 60 * 60 * 24));
+  const puzzleIndex = daysSinceRelease % result.TOTAL_PUZZLES;
+
+  const response = result.PUZZLES[puzzleIndex].fen;
+  const endTime = performance.now();
+  console.log(`getDailyFen took ${endTime - startTime} ms`);
+  return response;
 }
 
-async function main() {
-  if (!checkSite()) return;
-  createChessboard();
-}
-
-function createChessboard() {
+function createChessboard(fenCode) {
   const mainFeed = document.querySelector("main");
   if (!mainFeed) return;
 
@@ -89,20 +97,32 @@ function createChessboard() {
   `;
 
   const style = document.createElement("style");
+    // TODO: fix ".piece-417db.opponent-piece"
   style.textContent = `
     .piece-417db {
-      z-index: 10000 !important;
+      z-index: 9998 !important;
     }
     .piece-417db.dragging-piece {
-      z-index: 10001 !important;
+      z-index: 9999 !important;
+    }
+    /* Pointer cursor only on draggable pieces */
+    .piece-417db {
+      cursor: pointer;
+    }
+    /* Default cursor on empty squares */
+    #board .square-55d63 {
+      cursor: default;
+    }
+    /* Not-allowed cursor on opponent pieces */
+    .piece-417db.opponent-piece {
+      cursor: not-allowed;
     }
   `;
   document.head.appendChild(style);
 
   boardContainer.innerHTML = `
-    <div id="board" style="width: 400px"></div>
+    <div id="board" style="width: 400px;"></div>
     <div style="margin-top: 20px;">
-      <button id="resetBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Reset</button>
       <button id="flipBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Flip Board</button>
       <button id="zenBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Zen Mode</button>
     </div>
@@ -112,7 +132,7 @@ function createChessboard() {
   mainFeed.appendChild(boardContainer);
 
   game = new ChessConstructor();
-  game.load("1k6/1qn5/1ppp4/8/8/4PPP1/4RN2/5K2 b - - 0 1");
+  game.load(fenCode);
 
   const config = {
     draggable: true,
@@ -126,12 +146,6 @@ function createChessboard() {
   };
 
   board = window.Chessboard("board", config);
-
-  document.getElementById("resetBtn").addEventListener("click", () => {
-    game.reset();
-    board.start();
-    updateStatus();
-  });
 
   document.getElementById("flipBtn").addEventListener("click", () => {
     board.flip();
@@ -147,7 +161,7 @@ function createChessboard() {
 function toggleZenMode() {
   const zenMode = document.getElementById("zenMode");
   const chessContainer = document.getElementById("chess-container");
-  
+
   if (zenMode) {
     const mainFeed = document.querySelector("main");
     mainFeed.appendChild(chessContainer);
@@ -168,12 +182,12 @@ function toggleZenMode() {
       justify-content: center;
       align-items: center;
     `;
-    
+
     zenContainer.appendChild(chessContainer);
     document.body.appendChild(zenContainer);
     document.body.style.overflow = "hidden";
-    
-    zenContainer.addEventListener('click', (e) => {
+
+    zenContainer.addEventListener("click", (e) => {
       if (e.target === zenContainer) {
         toggleZenMode();
       }
@@ -198,19 +212,17 @@ function onDragStart(square, piece, position, orientation) {
 
   const isInCheck = game.in_check();
   const kingSquare = getKingSquare(game.turn());
-  if (square !== kingSquare || !isInCheck) {
-    putGreySquare(square);
-  }
 
   for (let i = 0; i < moves.length; i++) {
+    if (moves[i].from !== square) continue;
     if (moves[i].to !== kingSquare || !isInCheck) {
-      putGreySquare(moves[i].to);
+      highlightSquare(moves[i].to);
     }
   }
 }
 
 function onDrop(square, target) {
-  removeGreySquares();
+  removeHighlight();
 
   const move = game.move({
     from: square,
@@ -220,7 +232,7 @@ function onDrop(square, target) {
 
   if (move === null) return "snapback"; // Illegal move
 
-  removeRedSquares();
+  removeCheckHighlight();
   updateStatus();
 }
 
@@ -271,7 +283,7 @@ function updateStatus() {
       statusText += ", " + moveColor + " is in check";
       const kingSquare = getKingSquare(game.turn());
       if (kingSquare) {
-        putRedSquare(kingSquare);
+        highlightCheck(kingSquare);
       }
     }
   }
@@ -286,10 +298,11 @@ const observer = new MutationObserver((mutations) => {
     for (const node of mutation.addedNodes) {
       if (
         node instanceof Element &&
-        (node?.matches(postClassName) || node?.matches(dropdownId) || node?.matches(sidebarClass))
+        (node?.matches(postClassName) || node?.matches(dropdownId) || node?.matches(layoutAside))
       ) {
         console.log(`Detected mutation for ${node.tagName} with class ${node.className}`);
-        main();
+        const mutationDetected = true;
+        main(mutationDetected);
       }
     }
   }
@@ -299,5 +312,27 @@ observer.observe(document.body, {
   childList: true,
   subtree: true,
 });
+
+function applySettings(settings, mutationDetected = false) {
+  if (settings?.autoZenMode && !mutationDetected) {
+    toggleZenMode();
+  }
+
+  if (settings?.hideLayoutAside) {
+    const layoutRef = document.querySelector(layoutAside);
+    if (layoutRef) layoutRef.remove();
+  }
+}
+
+async function main(mutationDetected = false) {
+  if (!checkSite()) return;
+  const { settings } = await chrome.storage.local.get("settings");
+
+  // TODO: add settings to either show or hide posts while having puzzles disabled
+  if (settings?.dailyPuzzlesDisabled) return;
+
+  createChessboard(await getDailyFen());
+  applySettings(settings, mutationDetected);
+}
 
 main();
