@@ -1312,7 +1312,9 @@
         $('#' + squareElsIds[source])
           .addClass(CSS.highlight1)
           .find('.' + CSS.piece)
-          .css('display', 'none')
+          // instead of hiding the piece, we just reduce opacity to leave a ghost piece
+          // .css('display', 'none')
+          .css('opacity', 0.4)
       }
     }
 
