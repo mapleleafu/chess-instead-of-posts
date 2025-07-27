@@ -1,0 +1,5 @@
+.move-dest { background-image: radial-gradient(transparent 0%, transparent 79%, rgba(20, 85, 0, 0.3) 80%) !important; }
+.piece-capture { background-image: radial-gradient(rgba(20, 85, 30, 0.5) 19%, rgba(0, 0, 0, 0) 20%) !important; }
+.check { background-image: radial-gradient(ellipse at center, rgb(255, 0, 0) 0%, rgb(231, 0, 0) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%) !important; }
+.square-55d63.white-1e1d7.last-move { background-color: #cdd26a !important; }
+.square-55d63.black-3c85d.last-move { background-color: #aaa23a !important; }

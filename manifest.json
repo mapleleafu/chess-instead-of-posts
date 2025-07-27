@@ -26,7 +26,8 @@
         "scripts/content.js"
       ],
       "css": [
-        "libs/chessboard-1.0.0.css"
+        "libs/chessboard-1.0.0.css",
+        "styles/main.css"
       ],
       "matches": [
         "*://*.linkedin.com/*"
