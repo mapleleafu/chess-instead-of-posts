@@ -45,7 +45,6 @@ const highlightLastMove = (from, to) => {
     const squareEl = document.querySelector(`#board .square-${square}`);
     if (squareEl) {
       squareEl.classList.add("last-move");
-      console.log("Highlighting last move on square:", squareEl.className);
     }
   });
 };
@@ -102,6 +101,14 @@ const toggleLockBoard = (lockBoard = null) => {
   gameState.isBoardLocked = lockBoard !== null ? lockBoard : !gameState.isBoardLocked;
   chessPieces.forEach(piece => {
     piece.style.pointerEvents = gameState.isBoardLocked ? "none" : "auto";
+  });
+};
+
+const playSound = soundName => {
+  const sound = new Audio(chrome.runtime.getURL(`static/sounds/${soundName}.mp3`));
+  sound.volume = 0.5;
+  sound.play().catch(err => {
+    console.log("Error playing sound:", err);
   });
 };
 
@@ -203,6 +210,7 @@ const validateUserMove = move => {
     gameState.currentMoveIndex++;
 
     if (gameState.currentMoveIndex >= gameState.puzzleMoves.length) {
+      playSound("Victory");
       updateStatus("Success! Puzzle completed.");
       return true;
     }
@@ -211,6 +219,7 @@ const validateUserMove = move => {
     setTimeout(() => makeOpponentMove(gameState.puzzleMoves[gameState.currentMoveIndex]), 500);
     return true;
   } else {
+    playSound("Error");
     putMark(move.to, false);
     updateStatus("That's not the move! Try something else.");
     return false;
@@ -238,6 +247,8 @@ const executeMove = (from, to, animate = true) => {
   removeHighlights();
   const move = gameState.game.move({ from, to, promotion: "q" });
   if (!move) return null;
+
+  move.captured ? playSound("Capture") : playSound("Move");
 
   removeMarks();
 
@@ -538,10 +549,7 @@ const observer = new MutationObserver(mutations => {
 
   for (const mutation of mutations) {
     for (const node of mutation.addedNodes) {
-      if (
-        node instanceof Element &&
-        (node?.matches(postClassName) || node?.matches(dropdownId) || node?.matches(layoutAside))
-      ) {
+      if (node instanceof Element && node?.matches(postClassName)) {
         console.log(`Detected mutation for ${node.tagName} with class ${node.className}`);
         main(true);
       }
