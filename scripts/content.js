@@ -1,73 +1,141 @@
-let board = null;
-let game = null;
-let puzzleMoves = null;
-let currentMoveIndex = 0;
-let statusText = "";
+const gameState = {
+  board: null,
+  game: null,
+  puzzleMoves: null,
+  currentMoveIndex: 0,
+  isBoardLocked: false,
+  isPuzzleMode: true,
+};
 
-function checkSite() {
-  return window.location.href.includes("linkedin.com/feed");
-}
+const checkSite = () => window.location.href.includes("linkedin.com/feed");
 
-function highlightSquare(square) {
+const getMoveColor = () => (gameState.game.turn() === "w" ? "White" : "Black");
+
+const getKingSquare = color => {
+  const board = gameState.game.board();
+  for (let rank = 0; rank < 8; rank++) {
+    for (let file = 0; file < 8; file++) {
+      const piece = board[rank][file];
+      if (piece && piece.type === "k" && piece.color === color) {
+        const files = "abcdefgh";
+        const ranks = "87654321";
+        return files[file] + ranks[rank];
+      }
+    }
+  }
+  return null;
+};
+
+const highlightSquare = square => {
+  const squareEl = document.querySelector(`#board .square-${square}`);
+  if (!squareEl) return;
+  const hasPiece = squareEl.querySelector(".piece-417db") !== null;
+  squareEl.classList.add(hasPiece ? "move-dest" : "piece-capture");
+};
+
+const removeHighlights = () => {
+  document.querySelectorAll("#board .square-55d63").forEach(square => {
+    square.classList.remove("move-dest", "piece-capture");
+  });
+};
+
+const highlightLastMove = (from, to) => {
+  removeLastMoveHighlight();
+  [from, to].forEach(square => {
+    const squareEl = document.querySelector(`#board .square-${square}`);
+    if (squareEl) {
+      squareEl.classList.add("last-move");
+      console.log("Highlighting last move on square:", squareEl.className);
+    }
+  });
+};
+
+const removeLastMoveHighlight = () => {
+  document.querySelectorAll("#board .square-55d63").forEach(square => {
+    square.classList.remove("last-move");
+  });
+};
+
+const handleCheckHighlights = () => {
+  removeCheckHighlight();
+  if (gameState.game.in_check()) {
+    const kingSquare = getKingSquare(gameState.game.turn());
+    kingSquare && highlightCheck(kingSquare);
+  }
+};
+
+const highlightCheck = square => {
+  const squareEl = document.querySelector(`#board .square-${square}`);
+  if (squareEl) squareEl.classList.add("check");
+};
+
+const removeCheckHighlight = () => {
+  document.querySelectorAll("#board .square-55d63").forEach(square => {
+    square.classList.remove("check");
+  });
+};
+
+const putMark = (square, correct = true, animate = true) => {
   const squareEl = document.querySelector(`#board .square-${square}`);
   if (!squareEl) return;
 
-  const hasPiece = squareEl.querySelector(".piece-417db") !== null;
-  squareEl.classList.add(hasPiece ? "move-dest" : "piece-capture");
-}
+  const existingMark = squareEl.querySelector(".mark");
+  if (existingMark) existingMark.remove();
 
-function removeHighlights() {
-  document.querySelectorAll("#board .square-55d63").forEach((square) => {
-    square.classList.remove("move-dest", "piece-capture");
+  const mark = document.createElement("div");
+  mark.className = "mark";
+  mark.classList.add(correct ? "correct" : "incorrect");
+  if (!animate) mark.classList.add("no-animation");
+  mark.innerHTML = correct ? "✓" : "✗";
+
+  squareEl.appendChild(mark);
+};
+
+const removeMarks = () => {
+  document.querySelectorAll("#board .mark").forEach(mark => mark.remove());
+};
+
+const toggleLockBoard = (lockBoard = null) => {
+  const chessPieces = document.querySelectorAll(".piece-417db");
+  if (!chessPieces) return;
+
+  gameState.isBoardLocked = lockBoard !== null ? lockBoard : !gameState.isBoardLocked;
+  chessPieces.forEach(piece => {
+    piece.style.pointerEvents = gameState.isBoardLocked ? "none" : "auto";
   });
-}
+};
 
-function removeLastMoveHighlight() {
-  document.querySelectorAll("#board .square-55d63").forEach((square) => {
-    square.classList.remove("last-move");
-  });
-}
+const updateBoardPosition = (fen, animate = true) => {
+  gameState.board.position(fen, animate ? { animate: true } : false);
+};
 
-function removeCheckHighlight() {
-  document.querySelectorAll("#board .square-55d63").forEach((square) => {
-    square.classList.remove("check");
-  });
-}
+const updateStatus = text => {
+  const status = document.getElementById("status");
+  if (status) status.textContent = text;
+};
 
-function highlightCheck(square) {
-  const squareEl = document.querySelector(`#board .square-${square}`);
-  if (squareEl) squareEl.classList.add("check");
-}
+const updateStatusText = () => {
+  if (gameState.isPuzzleMode) return;
 
-function highlightLastMove(from, to) {
-  removeLastMoveHighlight();
-  [from, to].forEach((square) => {
-    const squareEl = document.querySelector(`#board .square-${square}`);
-    if (squareEl) squareEl.classList.add("last-move");
-  });
-}
+  const moveColor = getMoveColor();
 
-function handleCheckHighlights() {
-  removeCheckHighlight();
-
-  if (game.in_check()) {
-    const kingSquare = getKingSquare(game.turn());
-    if (kingSquare) {
-      highlightCheck(kingSquare);
-    }
+  if (gameState.game.in_checkmate()) {
+    updateStatus(`Game over, ${moveColor} is in checkmate.`);
+  } else if (gameState.game.in_draw()) {
+    updateStatus("Game over, drawn position");
+  } else if (gameState.game.in_check()) {
+    updateStatus(`${moveColor} is in check.`);
   }
-}
+};
 
-async function getDailyChess() {
-  //TODO: figure out if loading in memory makes the most sense.
-
+const getDailyChess = async () => {
   let result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
 
   if (!result.PUZZLES || !result.TOTAL_PUZZLES) {
     console.log("Puzzles not in storage, retrying...");
 
     for (let i = 0; i < 3; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 500));
       result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
       if (result.PUZZLES && result.TOTAL_PUZZLES) break;
     }
@@ -79,9 +147,9 @@ async function getDailyChess() {
       const lines = csvText
         .split("\n")
         .slice(1)
-        .filter((line) => line.trim());
+        .filter(line => line.trim());
 
-      const puzzles = lines.map((line) => {
+      const puzzles = lines.map(line => {
         const [id, fen, moves] = line.split(",");
         return { id, fen, moves };
       });
@@ -99,124 +167,196 @@ async function getDailyChess() {
   const daysSinceRelease = Math.floor((today - RELEASE_DATE) / (1000 * 60 * 60 * 24));
   const puzzleIndex = daysSinceRelease % result.TOTAL_PUZZLES;
   return result.PUZZLES[puzzleIndex];
-}
+};
 
-function initiatePuzzle() {
-  if (!puzzleMoves || puzzleMoves.length === 0) return;
+const initiatePuzzle = () => {
+  if (!gameState.puzzleMoves || gameState.puzzleMoves.length === 0) return;
 
-  currentMoveIndex = 0;
-  isPuzzleMode = true;
+  gameState.currentMoveIndex = 0;
+  gameState.isPuzzleMode = true;
+  toggleLockBoard(true);
 
-  new Promise((resolve) => {
-    setTimeout(() => {
-      makeOpponentMove(puzzleMoves[0]);
-      resolve();
-    }, 700);
-  }).then(() => {
-    // Allow user to make their first move after opponent's first move
-    const boardContainer = document.getElementById("chess-container");
-    if (boardContainer) boardContainer.style.pointerEvents = "auto";
-  });
-}
+  const playerColor = gameState.game.turn() === "b" ? "White" : "Black";
+  updateStatus(`Your turn. Find the best move for ${playerColor}.`);
 
-function makeOpponentMove(moveString) {
+  setTimeout(() => {
+    makeOpponentMove(gameState.puzzleMoves[0]);
+    toggleLockBoard(false);
+  }, 700);
+};
+
+const makeOpponentMove = moveString => {
   if (!moveString) return;
 
-  // Moves in puzzle format are like "e2e4", so we need to extract from/to
   const from = moveString.slice(0, 2);
   const to = moveString.slice(2, 4);
-  makeMove(from, to, { checkMove: false, animate: true });
-  currentMoveIndex++;
-}
+  executeMove(from, to, true);
+  gameState.currentMoveIndex++;
+};
 
-function makeMove(from, to, options = {}) {
-  const { checkMove = false, animate = true } = options;
+const validateUserMove = move => {
+  const expectedMove = gameState.puzzleMoves[gameState.currentMoveIndex];
+  const userMoveString = move.from + move.to;
 
-  removeHighlights();
-  const move = game.move({
-    from: from,
-    to: to,
-    promotion: "q",
-  });
+  if (userMoveString === expectedMove) {
+    putMark(move.to, true);
+    gameState.currentMoveIndex++;
 
-  //DEBUG
-  //? move = {"color":"w","from":"g5","to":"d8","flags":"c","piece":"q","captured":"r","san":"Qxd8"}
-
-  if (move === null) return "snapback"; // Illegal move
-
-  if (isPuzzleMode && checkMove) {
-    const isCorrect = checkUserMove(move);
-    if (!isCorrect) {
-      game.undo(); // Revert the move
-      return "snapback";
+    if (gameState.currentMoveIndex >= gameState.puzzleMoves.length) {
+      updateStatus("Success! Puzzle completed.");
+      return true;
     }
+
+    updateStatus("Best move! Keep going...");
+    setTimeout(() => makeOpponentMove(gameState.puzzleMoves[gameState.currentMoveIndex]), 500);
+    return true;
+  } else {
+    putMark(move.to, false);
+    updateStatus("That's not the move! Try something else.");
+    return false;
   }
+};
+
+const handleIncorrectMove = (move, originalHighlights) => {
+  toggleLockBoard(true);
+  highlightLastMove(move.from, move.to);
+
+  setTimeout(() => {
+    gameState.game.undo();
+    updateBoardPosition(gameState.game.fen());
+    removeMarks();
+    removeHighlights();
+    removeLastMoveHighlight();
+    highlightLastMove(...originalHighlights);
+    handleCheckHighlights();
+    updateStatusText();
+    toggleLockBoard(false);
+  }, 1000);
+};
+
+const executeMove = (from, to, animate = true) => {
+  removeHighlights();
+  const move = gameState.game.move({ from, to, promotion: "q" });
+  if (!move) return null;
+
+  removeMarks();
 
   if (animate) {
-    board.position(game.fen(), { animate: true });
+    updateBoardPosition(gameState.game.fen(), true);
   }
 
   handleCheckHighlights();
   highlightLastMove(from, to);
   updateStatusText();
+
+  return move;
+};
+
+const makeMove = (from, to, options = {}) => {
+  if (!document.getElementById("chess-container")) return "snapback";
+  const { isUserMove = false, animate = true } = options;
+
+  const originalHighlights = getHighlightedSquares();
+  const move = executeMove(from, to, animate);
+  if (!move) return "snapback";
+
+  if (gameState.isPuzzleMode && isUserMove) {
+    toggleLockBoard(true);
+    const isCorrect = validateUserMove(move);
+
+    if (!isCorrect) {
+      handleIncorrectMove(move, originalHighlights);
+      return;
+    }
+
+    toggleLockBoard(false);
+  }
+
   return;
-}
+};
 
-function checkUserMove(userMove) {
-  const expectedMove = puzzleMoves[currentMoveIndex];
-  const userMoveString = userMove.from + userMove.to;
+const onDragStart = (square, piece) => {
+  if (gameState.game.game_over() || gameState.isBoardLocked) return false;
 
-  if (userMoveString === expectedMove) {
-    console.log("Correct move!");
-    //TODO: put green checkmark on the piece
-    currentMoveIndex++;
-
-    if (currentMoveIndex >= puzzleMoves.length) {
-      console.log("Puzzle solved!");
-      isPuzzleMode = false;
-      // TODO: update status text
-      //TODO: save the puzzle as correct
-      return true;
-    }
-
-    if (currentMoveIndex < puzzleMoves.length) {
-      setTimeout(() => {
-        makeOpponentMove(puzzleMoves[currentMoveIndex]);
-      }, 500);
-    }
-
-    return true;
-  } else {
-    console.log(`Wrong move! Expected: ${expectedMove}, got: ${userMoveString}`);
-    // TODO: put red cross on the piece
-    // TODO: play the move and snap back after a short delay
-    // TODO: save the puzzle as incorrect
+  // Only pick up pieces for the side to move
+  if (
+    (gameState.game.turn() === "w" && piece.search(/^b/) !== -1) ||
+    (gameState.game.turn() === "b" && piece.search(/^w/) !== -1)
+  ) {
     return false;
   }
-}
 
-function createChessboard(fenCode) {
+  const moves = gameState.game.moves({ square, verbose: true });
+  if (!moves.length) return false;
+
+  moves.forEach(move => highlightSquare(move.to));
+  return true;
+};
+
+const onDrop = (from, to) => {
+  if (gameState.game.game_over() || gameState.isBoardLocked) return "snapback";
+
+  const result = makeMove(from, to, { isUserMove: true, animate: false });
+  return result === "snapback" ? "snapback" : undefined;
+};
+
+const onSnapEnd = () => {
+  updateBoardPosition(gameState.game.fen(), false);
+};
+
+const getHighlightedSquares = () => {
+  const squares = [];
+  document.querySelectorAll("#board .last-move").forEach(square => {
+    const match = square.className.match(/square-([a-h][1-8])/);
+    if (match) squares.push(match[1]);
+  });
+  return squares;
+};
+
+const getMarksOnSquares = () => {
+  const marks = {};
+  document.querySelectorAll("#board .mark").forEach(mark => {
+    const match = mark.parentElement.className.match(/square-([a-h][1-8])/);
+    if (match) {
+      marks[match[1]] = mark.classList.contains("correct") ? "correct" : "incorrect";
+    }
+  });
+  return marks;
+};
+
+const createChessboard = fenCode => {
   const mainFeed = document.querySelector("main");
   if (!mainFeed) return;
 
-  const existingScroll = document.querySelector(postClassName);
-  if (existingScroll) {
-    existingScroll.remove();
-  }
+  removeExistingElements();
 
   const ChessConstructor = Chess || window.Chess;
-
   if (!ChessConstructor || typeof window.Chessboard === "undefined") {
-    setTimeout(createChessboard, 1000);
+    setTimeout(() => createChessboard(fenCode), 1000);
     return;
   }
 
+  const container = createBoardContainer();
+  injectStyles();
+  mainFeed.appendChild(container);
+
+  initializeGame(fenCode);
+  setupBoard(fenCode);
+  attachEventListeners();
+};
+
+const removeExistingElements = () => {
   const existing = document.getElementById("chess-container");
   if (existing) existing.remove();
 
-  const boardContainer = document.createElement("div");
-  boardContainer.id = "chess-container";
-  boardContainer.style.cssText = `
+  const existingScroll = document.querySelector(postClassName);
+  if (existingScroll) existingScroll.remove();
+};
+
+const createBoardContainer = () => {
+  const container = document.createElement("div");
+  container.id = "chess-container";
+  container.style.cssText = `
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -228,26 +368,7 @@ function createChessboard(fenCode) {
     max-width: 500px;
   `;
 
-  const style = document.createElement("style");
-  style.textContent = `
-    .piece-417db {
-      z-index: 9998 !important;
-    }
-    .piece-417db.dragging-piece {
-      z-index: 9999 !important;
-    }
-    /* Pointer cursor only on draggable pieces */
-    .piece-417db {
-      cursor: pointer;
-    }
-    /* Default cursor on empty squares */
-    #board .square-55d63 {
-      cursor: default;
-    }
-  `;
-  document.head.appendChild(style);
-
-  boardContainer.innerHTML = `
+  container.innerHTML = `
     <div id="board" style="width: 400px;"></div>
     <div style="margin-top: 20px;">
       <button id="flipBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Flip Board</button>
@@ -256,45 +377,100 @@ function createChessboard(fenCode) {
     <div id="status" style="margin-top: 10px;"></div>
   `;
 
-  if (isPuzzleMode) {
-    // Locking board interaction until opponent move is made
-    boardContainer.style.pointerEvents = "none";
-  }
+  return container;
+};
 
-  mainFeed.appendChild(boardContainer);
+const injectStyles = () => {
+  const style = document.createElement("style");
+  style.textContent = `
+    .piece-417db {
+      z-index: 9998 !important;
+      cursor: pointer;
+    }
+    .piece-417db.dragging-piece {
+      z-index: 9999 !important;
+    }
+    #board .square-55d63 {
+      cursor: default;
+    }
+    .mark {
+      position: absolute;
+      top: 0%;
+      left: 90%;
+      transform: translate(-50%, -50%);
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      z-index: 10000;
+      animation: markPop 0.2s ease-out;
+    }
+    .mark.no-animation {
+      animation: none !important;
+    }
+    .mark.correct {
+      background: #22ac38;
+    }
+    .mark.incorrect {
+      background: red;
+    }
+    @keyframes markPop {
+      0% { transform: translate(-50%, -50%) scale(0); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+  `;
+  document.head.appendChild(style);
+};
 
-  game = new ChessConstructor();
-  game.load(fenCode);
+const initializeGame = fenCode => {
+  const ChessConstructor = Chess || window.Chess;
+  gameState.game = new ChessConstructor();
+  gameState.game.load(fenCode);
+};
 
-  // Opponent moves first in puzzles, so orientation is opposite of player's turn
+const setupBoard = fenCode => {
   const orientation = fenCode.includes(" w ") ? "black" : "white";
 
   const config = {
     draggable: true,
-    position: game.fen(),
-    onDragStart: onDragStart,
-    onDrop: onDrop,
+    position: gameState.game.fen(),
+    onDragStart,
+    onDrop,
     snapbackSpeed: 0,
-    onSnapEnd: onSnapEnd,
-    orientation: orientation,
-    pieceTheme: function (piece) {
-      return chrome.runtime.getURL(`libs/img/chesspieces/${piece}.png`);
-    },
+    onSnapEnd,
+    orientation,
+    pieceTheme: piece => chrome.runtime.getURL(`libs/img/chesspieces/${piece}.png`),
   };
 
-  board = window.Chessboard("board", config);
+  gameState.board = window.Chessboard("board", config);
+};
 
-  document.getElementById("flipBtn").addEventListener("click", () => {
-    // TODO: Keep highlighted squares styles
-    board.flip();
+const attachEventListeners = () => {
+  document.getElementById("flipBtn").addEventListener("click", flipBoard);
+  document.getElementById("zenBtn").addEventListener("click", toggleZenMode);
+};
+
+const flipBoard = () => {
+  const highlightedSquares = getHighlightedSquares();
+  const marks = getMarksOnSquares();
+
+  gameState.board.flip();
+
+  if (highlightedSquares.length) {
+    highlightLastMove(...highlightedSquares);
+  }
+
+  Object.entries(marks).forEach(([square, correct]) => {
+    putMark(square, correct === "correct", false);
   });
+};
 
-  document.getElementById("zenBtn").addEventListener("click", () => {
-    toggleZenMode();
-  });
-}
-
-function toggleZenMode() {
+const toggleZenMode = () => {
   const zenMode = document.getElementById("zenMode");
   const chessContainer = document.getElementById("chess-container");
 
@@ -323,118 +499,14 @@ function toggleZenMode() {
     document.body.appendChild(zenContainer);
     document.body.style.overflow = "hidden";
 
-    zenContainer.addEventListener("click", (e) => {
-      if (e.target === zenContainer) {
-        toggleZenMode();
-      }
+    zenContainer.addEventListener("click", e => {
+      if (e.target === zenContainer) toggleZenMode();
     });
   }
-}
+};
 
-function onDragStart(square, piece, position, orientation) {
-  if (game.game_over()) return false;
-
-  // Only pick up pieces for the side to move
-  if ((game.turn() === "w" && piece.search(/^b/) !== -1) || (game.turn() === "b" && piece.search(/^w/) !== -1)) {
-    return false;
-  }
-
-  const moves = game.moves({
-    square: square,
-    verbose: true,
-  });
-
-  if (moves.length === 0) return;
-
-  const isInCheck = game.in_check();
-  const kingSquare = getKingSquare(game.turn());
-
-  for (let i = 0; i < moves.length; i++) {
-    if (moves[i].to !== kingSquare || !isInCheck) {
-      highlightSquare(moves[i].to);
-    }
-  }
-}
-
-function onDrop(from, to) {
-  const result = makeMove(from, to, { checkMove: true, animate: false });
-  return result === "snapback" ? "snapback" : undefined;
-}
-
-function onSnapEnd() {
-  board.position(game.fen());
-}
-
-function getKingSquare(color) {
-  const board = game.board();
-  for (let rank = 0; rank < 8; rank++) {
-    for (let file = 0; file < 8; file++) {
-      const piece = board[rank][file];
-      if (piece && piece.type === "k" && piece.color === color) {
-        // Convert rank/file to square notation (e.g., e1, e8)
-        const files = "abcdefgh";
-        const ranks = "87654321";
-        return files[file] + ranks[rank];
-      }
-    }
-  }
-  return null;
-}
-
-function getSquareBackground(square) {
-  const squareEl = document.querySelector(`#board .square-${square}`);
-  if (!squareEl) return null;
-
-  return squareEl.style.background || "";
-}
-
-function getMoveColor() {
-  return game.turn() === "w" ? "White" : "Black";
-}
-
-function updateStatusText() {
-  const status = document.getElementById("status");
-  const moveColor = getMoveColor();
-
-  if (!isPuzzleMode) {
-    if (game.in_checkmate()) {
-      statusText = `Game over, ${moveColor} is in checkmate.`;
-    } else if (game.in_draw()) {
-      statusText = "Game over, drawn position";
-    } else if (game.in_check()) {
-      statusText = `${moveColor} is in check.`;
-    }
-  } else {
-    statusText = `${game.in_check() ? `${moveColor} is in check.` : ""} Find the best move for ${moveColor}.`;
-  }
-
-  status.textContent = statusText;
-}
-
-const observer = new MutationObserver((mutations) => {
-  if (!checkSite()) return;
-
-  for (const mutation of mutations) {
-    for (const node of mutation.addedNodes) {
-      if (
-        node instanceof Element &&
-        (node?.matches(postClassName) || node?.matches(dropdownId) || node?.matches(layoutAside))
-      ) {
-        console.log(`Detected mutation for ${node.tagName} with class ${node.className}`);
-        const mutationDetected = true;
-        main(mutationDetected);
-      }
-    }
-  }
-});
-
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-});
-
-function applySettings(settings, mutationDetected = false) {
-  if (isPuzzleMode) initiatePuzzle();
+const applySettings = (settings, mutationDetected = false) => {
+  if (gameState.isPuzzleMode) initiatePuzzle();
 
   if (settings?.autoZenMode && !mutationDetected) {
     toggleZenMode();
@@ -444,21 +516,42 @@ function applySettings(settings, mutationDetected = false) {
     const layoutRef = document.querySelector(layoutAside);
     if (layoutRef) layoutRef.remove();
   }
-}
+};
 
-async function main(mutationDetected = false) {
+const main = async (mutationDetected = false) => {
   if (!checkSite()) return;
-  const { settings } = await chrome.storage.local.get("settings");
 
-  // TODO: add settings to either show or hide posts while having puzzles disabled
+  const { settings } = await chrome.storage.local.get("settings");
   if (settings?.dailyPuzzlesDisabled) return;
 
   const dailyChess = await getDailyChess();
   console.log("Daily Chess Puzzle:", dailyChess);
-  puzzleMoves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
+
+  gameState.puzzleMoves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
 
   createChessboard(dailyChess.fen);
   applySettings(settings, mutationDetected);
-}
+};
+
+const observer = new MutationObserver(mutations => {
+  if (!checkSite()) return;
+
+  for (const mutation of mutations) {
+    for (const node of mutation.addedNodes) {
+      if (
+        node instanceof Element &&
+        (node?.matches(postClassName) || node?.matches(dropdownId) || node?.matches(layoutAside))
+      ) {
+        console.log(`Detected mutation for ${node.tagName} with class ${node.className}`);
+        main(true);
+      }
+    }
+  }
+});
+
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
 
 main();
