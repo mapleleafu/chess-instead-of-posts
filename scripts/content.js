@@ -2,9 +2,20 @@ const gameState = {
   board: null,
   game: null,
   puzzleMoves: null,
+  puzzleId: null,
+  puzzleFen: null,
   currentMoveIndex: 0,
   isBoardLocked: false,
   isPuzzleMode: true,
+  puzzleStartTime: null,
+  hasIncorrectMoves: false,
+};
+
+const sounds = {
+  Move: new Audio(chrome.runtime.getURL("static/sounds/Move.mp3")),
+  Capture: new Audio(chrome.runtime.getURL("static/sounds/Capture.mp3")),
+  Victory: new Audio(chrome.runtime.getURL("static/sounds/Victory.mp3")),
+  Error: new Audio(chrome.runtime.getURL("static/sounds/Error.mp3")),
 };
 
 const checkSite = () => window.location.href.includes("linkedin.com/feed");
@@ -74,6 +85,30 @@ const removeCheckHighlight = () => {
   });
 };
 
+const savePuzzleAttempt = options => {
+  const { fen, puzzleId, isSolved = false, timeSpentSeconds = 0 } = options || {};
+
+  if (!fen || !puzzleId) return;
+
+  chrome.storage.local.get("PUZZLE_ATTEMPTS", result => {
+    const attempts = result.PUZZLE_ATTEMPTS || [];
+    const existingIndex = attempts.findIndex(attempt => attempt.puzzleId === puzzleId);
+
+    const attempt = {
+      fen,
+      puzzleId,
+      isSolved,
+      timestamp: new Date().toISOString(),
+      timeSpentSeconds,
+    };
+
+    // Only save if attempt doesn't already exist
+    if (existingIndex === -1) attempts.push(attempt);
+
+    chrome.storage.local.set({ PUZZLE_ATTEMPTS: attempts });
+  });
+};
+
 const putMark = (square, correct = true, animate = true) => {
   const squareEl = document.querySelector(`#board .square-${square}`);
   if (!squareEl) return;
@@ -105,10 +140,14 @@ const toggleLockBoard = (lockBoard = null) => {
 };
 
 const playSound = soundName => {
-  const sound = new Audio(chrome.runtime.getURL(`static/sounds/${soundName}.mp3`));
-  sound.volume = 0.5;
-  sound.play().catch(err => {
-    console.log("Error playing sound:", err);
+  chrome.storage.local.get("settings", result => {
+    const settings = result.settings || {};
+    const sound = sounds[soundName];
+
+    if (!sound || settings.soundsDisabled) return;
+
+    sound.volume = (settings.soundVolume || 100) / 100;
+    sound.play().catch(err => console.error("Error playing sound:", err));
   });
 };
 
@@ -132,6 +171,8 @@ const updateStatusText = () => {
     updateStatus("Game over, drawn position");
   } else if (gameState.game.in_check()) {
     updateStatus(`${moveColor} is in check.`);
+  } else {
+    updateStatus(`${moveColor} to move.`);
   }
 };
 
@@ -181,6 +222,8 @@ const initiatePuzzle = () => {
 
   gameState.currentMoveIndex = 0;
   gameState.isPuzzleMode = true;
+  gameState.puzzleStartTime = Date.now();
+  gameState.hasIncorrectMoves = false;
   toggleLockBoard(true);
 
   const playerColor = gameState.game.turn() === "b" ? "White" : "Black";
@@ -212,6 +255,17 @@ const validateUserMove = move => {
     if (gameState.currentMoveIndex >= gameState.puzzleMoves.length) {
       playSound("Victory");
       updateStatus("Success! Puzzle completed.");
+      gameState.isPuzzleMode = false;
+      toggleLockBoard(false);
+      
+      if (!gameState.hasIncorrectMoves) {
+        savePuzzleAttempt({
+          fen: gameState.puzzleFen,
+          puzzleId: gameState.puzzleId,
+          isSolved: true,
+          timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
+        });
+      }
       return true;
     }
 
@@ -222,6 +276,16 @@ const validateUserMove = move => {
     playSound("Error");
     putMark(move.to, false);
     updateStatus("That's not the move! Try something else.");
+    
+    if (!gameState.hasIncorrectMoves) {
+      gameState.hasIncorrectMoves = true;
+      savePuzzleAttempt({
+        fen: gameState.puzzleFen,
+        puzzleId: gameState.puzzleId,
+        isSolved: false,
+        timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
+      });
+    }
     return false;
   }
 };
@@ -539,6 +603,8 @@ const main = async (mutationDetected = false) => {
   console.log("Daily Chess Puzzle:", dailyChess);
 
   gameState.puzzleMoves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
+  gameState.puzzleId = dailyChess.id || null;
+  gameState.puzzleFen = dailyChess.fen || null;
 
   createChessboard(dailyChess.fen);
   applySettings(settings, mutationDetected);
