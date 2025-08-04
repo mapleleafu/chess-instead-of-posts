@@ -5,7 +5,18 @@ const gameState = {
   currentMoveIndex: 0,
   isBoardLocked: false,
   isPuzzleMode: true,
+  analysisAPI: null,
+  currentAnalysis: null,
 };
+
+const sounds = {
+  Move: new Audio(chrome.runtime.getURL("static/sounds/Move.mp3")),
+  Capture: new Audio(chrome.runtime.getURL("static/sounds/Capture.mp3")),
+  Victory: new Audio(chrome.runtime.getURL("static/sounds/Victory.mp3")),
+  Error: new Audio(chrome.runtime.getURL("static/sounds/Error.mp3")),
+};
+
+Object.values(sounds).forEach(audio => (audio.volume = 0.5));
 
 const checkSite = () => window.location.href.includes("linkedin.com/feed");
 
@@ -35,7 +46,17 @@ const highlightSquare = square => {
 
 const removeHighlights = () => {
   document.querySelectorAll("#board .square-55d63").forEach(square => {
-    square.classList.remove("move-dest", "piece-capture");
+    square.classList.remove("move-dest", "piece-capture", "best-move");
+  });
+};
+
+const highlightBestMove = (from, to) => {
+  removeHighlights();
+  [from, to].forEach(square => {
+    const squareEl = document.querySelector(`#board .square-${square}`);
+    if (squareEl) {
+      squareEl.classList.add("best-move");
+    }
   });
 };
 
@@ -104,13 +125,7 @@ const toggleLockBoard = (lockBoard = null) => {
   });
 };
 
-const playSound = soundName => {
-  const sound = new Audio(chrome.runtime.getURL(`static/sounds/${soundName}.mp3`));
-  sound.volume = 0.5;
-  sound.play().catch(err => {
-    console.log("Error playing sound:", err);
-  });
-};
+const playSound = soundName => sounds[soundName]?.play().catch(err => console.log("Error:", err));
 
 const updateBoardPosition = (fen, animate = true) => {
   gameState.board.position(fen, animate ? { animate: true } : false);
@@ -119,6 +134,31 @@ const updateBoardPosition = (fen, animate = true) => {
 const updateStatus = text => {
   const status = document.getElementById("status");
   if (status) status.textContent = text;
+};
+
+const updateAnalysisDisplay = analysis => {
+  const analysisDiv = document.getElementById("analysis-display");
+  if (!analysisDiv || !analysis) return;
+
+  const { bestMove, evaluation, principalVariation } = analysis;
+
+  let evalText = "Unknown";
+  if (evaluation && evaluation.centipawns !== undefined) {
+    const cp = evaluation.centipawns;
+    if (Math.abs(cp) > 1000) {
+      evalText = cp > 0 ? "+M" : "-M"; // Mate
+    } else {
+      evalText = (cp / 100).toFixed(1);
+    }
+  }
+
+  analysisDiv.innerHTML = `
+    <div style="margin: 10px 0; padding: 10px; background: rgba(0,0,0,0.1); border-radius: 4px;">
+      <div><strong>Best Move:</strong> ${bestMove || "N/A"}</div>
+      <div><strong>Evaluation:</strong> ${evalText}</div>
+      <div><strong>Line:</strong> ${principalVariation || "N/A"}</div>
+    </div>
+  `;
 };
 
 const updateStatusText = () => {
@@ -132,6 +172,8 @@ const updateStatusText = () => {
     updateStatus("Game over, drawn position");
   } else if (gameState.game.in_check()) {
     updateStatus(`${moveColor} is in check.`);
+  } else {
+    updateStatus(`${moveColor} to move.`);
   }
 };
 
@@ -212,6 +254,8 @@ const validateUserMove = move => {
     if (gameState.currentMoveIndex >= gameState.puzzleMoves.length) {
       playSound("Victory");
       updateStatus("Success! Puzzle completed.");
+      gameState.isPuzzleMode = false;
+      toggleLockBoard(false);
       return true;
     }
 
@@ -382,10 +426,12 @@ const createBoardContainer = () => {
   container.innerHTML = `
     <div id="board" style="width: 400px;"></div>
     <div style="margin-top: 20px;">
-      <button id="flipBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Flip Board</button>
-      <button id="zenBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Zen Mode</button>
+      <button id="flipBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white; border: 1px solid #ccc; border-radius: 4px;">Flip Board</button>
+      <button id="zenBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white; border: 1px solid #ccc; border-radius: 4px;">Zen Mode</button>
+      <button id="analyzeBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px;">Analyze</button>
     </div>
-    <div id="status" style="margin-top: 10px;"></div>
+    <div id="status" style="margin-top: 10px; font-weight: bold;"></div>
+    <div id="analysis-display" style="margin-top: 10px; min-height: 60px; width: 100%;"></div>
   `;
 
   return container;
@@ -430,6 +476,10 @@ const injectStyles = () => {
     .mark.incorrect {
       background: red;
     }
+    .best-move {
+      background: rgba(255, 255, 0, 0.4) !important;
+      box-shadow: inset 0 0 0 3px yellow !important;
+    }
     @keyframes markPop {
       0% { transform: translate(-50%, -50%) scale(0); }
       100% { transform: translate(-50%, -50%) scale(1); }
@@ -464,6 +514,7 @@ const setupBoard = fenCode => {
 const attachEventListeners = () => {
   document.getElementById("flipBtn").addEventListener("click", flipBoard);
   document.getElementById("zenBtn").addEventListener("click", toggleZenMode);
+  document.getElementById("analyzeBtn").addEventListener("click", analyzeCurrentPosition);
 };
 
 const flipBoard = () => {
@@ -513,6 +564,63 @@ const toggleZenMode = () => {
     zenContainer.addEventListener("click", e => {
       if (e.target === zenContainer) toggleZenMode();
     });
+  }
+};
+
+const analyzeCurrentPosition = async () => {
+  console.log("analyzeCurrentPosition: Starting analysis");
+
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  if (analyzeBtn) {
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = "Analyzing...";
+  }
+
+  updateStatus("Analyzing position...");
+
+  try {
+    const currentFen = gameState.game.fen();
+    console.log("analyzeCurrentPosition: Current FEN:", currentFen);
+
+    console.log("analyzeCurrentPosition: Sending message to background script");
+    const response = await chrome.runtime.sendMessage({
+      type: "ANALYZE_POSITION",
+      fen: currentFen,
+      depth: 5,
+    });
+
+    console.log("analyzeCurrentPosition: Received response:", response);
+
+    if (response && response.success) {
+      const result = response.result;
+      console.log("analyzeCurrentPosition: Analysis result:", result);
+
+      gameState.currentAnalysis = result;
+      updateAnalysisDisplay(result);
+
+      if (result.bestMove && result.bestMove.length >= 4) {
+        const from = result.bestMove.slice(0, 2);
+        const to = result.bestMove.slice(2, 4);
+        console.log("analyzeCurrentPosition: Highlighting best move:", from, "to", to);
+        highlightBestMove(from, to);
+      }
+
+      updateStatus("Analysis complete!");
+    } else {
+      const errorMsg = response ? response.error : "No response received";
+      console.log("analyzeCurrentPosition: Analysis failed:", errorMsg);
+      throw new Error(errorMsg);
+    }
+  } catch (error) {
+    console.log("analyzeCurrentPosition: Error caught:", error);
+    console.log("analyzeCurrentPosition: Error details:", error.message, error.stack);
+    updateStatus("Analysis failed: " + error.message);
+  } finally {
+    console.log("analyzeCurrentPosition: Cleaning up UI");
+    if (analyzeBtn) {
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = "Analyze";
+    }
   }
 };
 

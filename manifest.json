@@ -3,6 +3,9 @@
   "description": "Browser extension that blocks LinkedIn feed and shows daily chess puzzles instead.",
   "version": "1.0",
   "manifest_version": 3,
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": "hello_extensions.png"
@@ -39,13 +42,15 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "offscreen"
   ],
   "web_accessible_resources": [
     {
       "resources": [
         "libs/*",
-        "static/*"
+        "static/*",
+        "libs/stockfish.wasm"
       ],
       "matches": [
         "*://*.linkedin.com/*"
