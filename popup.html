@@ -1,30 +1,607 @@
 <html>
-  <body style="width: 300px; height: 400px; font-family: Arial, sans-serif;">
-    <h1>Chess Instead of Posts Settings</h1>
-    <form id="settingsForm">
-      <label>
-        <input type="checkbox" id="autoZenMode" name="autoZenMode">
-        Enable Auto Zen Mode
-      </label><br>
-      <label>
-        <input type="checkbox" id="hideLayoutAside" name="hideLayoutAside">
-        Hide Layout Aside
-      </label><br>
-      <label>
-        <input type="checkbox" id="dailyPuzzlesDisabled" name="dailyPuzzlesDisabled">
-        Disable Daily Puzzles
-      </label><br>
-      <!-- add a volume changer for sounds using a slider -->
-      <label>
-        Sound Volume: 
-        <input type="range" id="soundVolume" name="soundVolume" min="0" max="100" value="50">
-      </label><br>
-      <label>
-        <input type="checkbox" id="soundsDisabled" name="soundsDisabled">
-        Disable Sounds
-      </label><br>
-    </form>
-  </body>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
+      body {
+        width: 400px;
+        max-height: 600px;
+        overflow-y: auto;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f8f9fa;
+        padding: 0;
+        margin: 0;
+      }
+
+      #container {
+        background: white;
+        border-radius: 0;
+        margin: 0;
+        overflow: hidden;
+        min-height: 100vh;
+      }
+
+      .tabs {
+        display: flex;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .tab {
+        flex: 1;
+        padding: 12px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: #718096;
+        background: transparent;
+        border: none;
+        transition: all 0.2s;
+      }
+
+      .tab.active {
+        color: #667eea;
+        border-bottom: 2px solid #667eea;
+      }
+
+      .tab-content {
+        display: none;
+        padding: 24px;
+        animation: fadeIn 0.3s ease-in-out;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .stat-value {
+        transition: all 0.3s ease;
+      }
+
+      .chart-container {
+        transition: all 0.2s ease;
+      }
+
+      .chart-container:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      /* Stats Styles */
+      .date-filter {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .date-filter label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #4a5568;
+      }
+
+      .date-filter select {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        color: #4a5568;
+        cursor: pointer;
+      }
+
+      .date-filter select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        padding: 16px 12px;
+        border-radius: 12px;
+        text-align: center;
+        position: relative;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+        transition: all 0.2s ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        border-color: rgba(102, 126, 234, 0.2);
+      }
+
+      .stat-card.highlight {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border-color: #667eea;
+      }
+
+      .stat-value {
+        font-size: 28px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 4px;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        color: #718096;
+        text-transform: uppercase;
+        margin-top: 4px;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+
+      .stat-trend {
+        font-size: 10px;
+        margin-top: 4px;
+        font-weight: 500;
+      }
+
+      .trend-up {
+        color: #48bb78;
+      }
+
+      .trend-down {
+        color: #f56565;
+      }
+
+      .trend-neutral {
+        color: #718096;
+      }
+
+      .chart-container {
+        margin-bottom: 20px;
+        background: white;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+      }
+
+      .insights-section {
+        background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+      }
+
+      .insights-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .insight-item {
+        background: white;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: #4a5568;
+        border-left: 4px solid #667eea;
+      }
+
+      .insight-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .insight-icon {
+        width: 16px;
+        height: 16px;
+        display: inline-block;
+      }
+
+      .chart-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      canvas {
+        max-height: 150px;
+      }
+
+      /* Settings Styles */
+      h1 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e2e8f0;
+      }
+
+      .setting-item {
+        margin-bottom: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        transition: background 0.2s;
+      }
+
+      .setting-item:hover {
+        background: #f7fafc;
+      }
+
+      .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      input[type="checkbox"] {
+        appearance: none;
+        width: 44px;
+        height: 24px;
+        background: #cbd5e0;
+        border-radius: 12px;
+        position: relative;
+        cursor: pointer;
+        transition: background 0.3s;
+        flex-shrink: 0;
+        margin-right: 12px;
+      }
+
+      input[type="checkbox"]:checked {
+        background: #667eea;
+      }
+
+      input[type="checkbox"]::before {
+        content: "";
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      input[type="checkbox"]:checked::before {
+        transform: translateX(20px);
+      }
+
+      .label-text {
+        font-size: 14px;
+        color: #4a5568;
+        font-weight: 500;
+        user-select: none;
+      }
+
+      .volume-container {
+        padding: 16px 12px;
+        background: #f7fafc;
+        border-radius: 8px;
+      }
+
+      .volume-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .volume-text {
+        font-size: 14px;
+        color: #4a5568;
+        font-weight: 500;
+      }
+
+      .volume-value {
+        font-size: 12px;
+        color: #667eea;
+        font-weight: 600;
+        min-width: 30px;
+        text-align: right;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        outline: none;
+        appearance: none;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: #667eea;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+        transition: transform 0.2s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: #667eea;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+      }
+
+      .divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 16px 0;
+      }
+
+      .streak-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        background: #f6ad55;
+        border-radius: 50%;
+        margin-left: 6px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(246, 173, 85, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(246, 173, 85, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(246, 173, 85, 0);
+        }
+      }
+    </style>
+    <script src="libs/chart.min.js"></script>
+  </head>
+  <body>
+    <div id="container">
+      <div class="tabs">
+        <button
+          class="tab active"
+          data-tab="stats">
+          Statistics
+        </button>
+        <button
+          class="tab"
+          data-tab="settings">
+          Settings
+        </button>
+      </div>
+
+      <div
+        id="stats"
+        class="tab-content active">
+        <div class="date-filter">
+          <label for="dateRange">Time Period:</label>
+          <select id="dateRange">
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+            <option
+              value="all"
+              selected>
+              All Time
+            </option>
+          </select>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div
+              class="stat-value"
+              id="totalPuzzles">
+              0
+            </div>
+            <div class="stat-label">Total Puzzles</div>
+            <div
+              class="stat-trend"
+              id="totalTrend"></div>
+          </div>
+          <div
+            class="stat-card highlight"
+            id="solveRateCard">
+            <div
+              class="stat-value"
+              id="solveRate">
+              0%
+            </div>
+            <div class="stat-label">Success Rate</div>
+            <div
+              class="stat-trend"
+              id="solveRateTrend"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">
+              <span id="currentStreak">0</span>
+              <span id="streakIndicator"></span>
+            </div>
+            <div class="stat-label">Day Streak</div>
+            <div
+              class="stat-trend"
+              id="streakTrend"></div>
+          </div>
+          <div class="stat-card">
+            <div
+              class="stat-value"
+              id="avgTime">
+              0s
+            </div>
+            <div class="stat-label">Avg Time</div>
+            <div
+              class="stat-trend"
+              id="timeTrend"></div>
+          </div>
+          <div class="stat-card">
+            <div
+              class="stat-value"
+              id="bestStreak">
+              0
+            </div>
+            <div class="stat-label">Best Streak</div>
+            <div
+              class="stat-trend"
+              id="bestStreakTrend"></div>
+          </div>
+          <div class="stat-card">
+            <div
+              class="stat-value"
+              id="fastestSolve">
+              --
+            </div>
+            <div class="stat-label">Fastest Solve</div>
+            <div
+              class="stat-trend"
+              id="fastestTrend"></div>
+          </div>
+        </div>
+
+        <div class="insights-section">
+          <div class="insights-title">
+            <span class="insight-icon">●</span>
+            Performance Insights
+          </div>
+          <div id="insightsContainer">
+            <div class="insight-item">Loading insights...</div>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <div
+            class="chart-title"
+            id="performanceChartTitle">
+            Performance
+          </div>
+          <canvas id="performanceChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <div
+            class="chart-title"
+            id="timeChartTitle">
+            Time Distribution
+          </div>
+          <canvas id="timeChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <div
+            class="chart-title"
+            id="trendChartTitle">
+            Solve Rate Trend
+          </div>
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <div
+        id="settings"
+        class="tab-content">
+        <h1>Settings</h1>
+
+        <div class="setting-item">
+          <label class="checkbox-wrapper">
+            <input
+              type="checkbox"
+              id="autoZenMode"
+              name="autoZenMode" />
+            <span class="label-text">Enable Auto Zen Mode</span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <label class="checkbox-wrapper">
+            <input
+              type="checkbox"
+              id="hideLayoutAside"
+              name="hideLayoutAside" />
+            <span class="label-text">Hide Layout Aside</span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <label class="checkbox-wrapper">
+            <input
+              type="checkbox"
+              id="dailyPuzzlesDisabled"
+              name="dailyPuzzlesDisabled" />
+            <span class="label-text">Disable Daily Puzzles</span>
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="volume-container">
+          <div class="volume-label">
+            <span class="volume-text">Sound Volume</span>
+            <span
+              class="volume-value"
+              id="volumeDisplay"></span>
+          </div>
+          <input
+            type="range"
+            id="soundVolume"
+            name="soundVolume"
+            min="0"
+            max="100"
+            value="30" />
+        </div>
+
+        <div class="setting-item">
+          <label class="checkbox-wrapper">
+            <input
+              type="checkbox"
+              id="soundsDisabled"
+              name="soundsDisabled" />
+            <span class="label-text">Disable All Sounds</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </body>
   <script src="scripts/popup.js"></script>
 </html>
