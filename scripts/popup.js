@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById("hideLayoutAside").checked = data.settings.hideLayoutAside;
       document.getElementById("dailyPuzzlesDisabled").checked = data.settings.dailyPuzzlesDisabled;
       document.getElementById("soundsDisabled").checked = data.settings.soundsDisabled;
-      document.getElementById("soundVolume").value = data.settings.soundVolume || 50;
+      document.getElementById("soundVolume").value = data.settings.soundVolume || 30;
     }
 
     document.getElementById("autoZenMode").addEventListener("change", saveSettings);

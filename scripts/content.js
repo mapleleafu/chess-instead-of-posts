@@ -37,16 +37,21 @@ const getKingSquare = color => {
   return null;
 };
 
-const highlightSquare = square => {
+const highlightSquare = (square, isHint = false) => {
   const squareEl = document.querySelector(`#board .square-${square}`);
   if (!squareEl) return;
   const hasPiece = squareEl.querySelector(".piece-417db") !== null;
-  squareEl.classList.add(hasPiece ? "move-dest" : "piece-capture");
+  if (isHint) {
+    highlightPossibleMoves(square);
+    squareEl.classList.add("hint");
+  } else {
+    squareEl.classList.add(hasPiece ? "move-dest" : "piece-capture");
+  }
 };
 
 const removeHighlights = () => {
   document.querySelectorAll("#board .square-55d63").forEach(square => {
-    square.classList.remove("move-dest", "piece-capture");
+    square.classList.remove("move-dest", "piece-capture", "hint");
   });
 };
 
@@ -104,7 +109,8 @@ const savePuzzleAttempt = options => {
       isFinished: isSolved || false,
     };
 
-    if (existingIndex === -1) { // New attempt
+    if (existingIndex === -1) {
+      // New attempt
       attempts.push(attempt);
     } else if (isSolved && !existingAttempt.isFinished) {
       existingAttempt.isFinished = true;
@@ -274,6 +280,7 @@ const validateUserMove = move => {
       updateStatus("Success! Puzzle completed.");
       gameState.isPuzzleMode = false;
       toggleLockBoard(false);
+      toggleZenModeManually(false);
 
       if (!gameState.hasIncorrectMoves) {
         savePuzzleAttempt({
@@ -378,11 +385,19 @@ const onDragStart = (square, piece) => {
     return false;
   }
 
+  highlightPossibleMoves(square);
+  return true;
+};
+
+const highlightPossibleMoves = square => {
+  if (gameState.isBoardLocked || gameState.game.game_over()) return;
+
+  removeHighlights();
+
   const moves = gameState.game.moves({ square, verbose: true });
-  if (!moves.length) return false;
+  if (!moves.length) return;
 
   moves.forEach(move => highlightSquare(move.to));
-  return true;
 };
 
 const onDrop = (from, to) => {
@@ -421,6 +436,7 @@ const createCompletionMessage = (dailyChess, mutationDetected) => {
   if (!mainFeed) return;
 
   removeExistingElements();
+  injectStyles();
 
   const container = document.createElement("div");
   container.id = "chess-container";
@@ -441,7 +457,6 @@ const applyContainerStyles = container => {
     flex-direction: column;
     align-items: center;
     padding: 20px;
-    background: gray;
     border-radius: 8px;
     box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.15);
     margin: 20px auto;
@@ -454,8 +469,8 @@ const getCompletionMessageHTML = () => `
   <div style="font-size: 24px; margin-bottom: 20px;">
     You've solved today's chess puzzle! 😊
   </div>
-  <button id="solveAgainBtn" style="padding: 10px 20px; cursor: pointer; background: white; border: 1px solid #ccc; border-radius: 4px;">
-    Solve Again
+  <button id="solveAgainBtn" class="chess-btn chess-btn-primary" style="font-size: 16px; padding: 12px 24px;">
+    <span>🔄</span> Solve Again
   </button>
 `;
 
@@ -496,7 +511,6 @@ const createBoardContainer = () => {
     flex-direction: column;
     align-items: center;
     padding: 20px;
-    background: gray;
     border-radius: 8px;
     box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.15);
     margin: 20px auto;
@@ -505,10 +519,20 @@ const createBoardContainer = () => {
 
   container.innerHTML = `
     <div id="board" style="width: 400px;"></div>
-    <div style="margin-top: 20px;">
-      <button id="flipBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Flip Board</button>
-      <button id="zenBtn" style="padding: 10px 20px; margin: 5px; cursor: pointer; background: white;">Zen Mode</button>
-    </div>
+      <div id="chess-buttons" style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
+        <button id="flipBtn" class="chess-btn chess-btn-secondary">
+          <span>↻</span> Flip Board
+        </button>
+        <button id="hintBtn" class="chess-btn chess-btn-primary">
+          <span>💡</span> Hint
+        </button>
+        <button id="viewNextBtn" class="chess-btn chess-btn-primary">
+          <span>👁</span> Next Move
+        </button>
+        <button id="zenBtn" class="chess-btn chess-btn-accent">
+          <span>🧘</span> Zen Mode
+        </button>
+      </div>
     <div id="status" style="margin-top: 10px;"></div>
   `;
 
@@ -527,6 +551,56 @@ const injectStyles = () => {
     }
     #board .square-55d63 {
       cursor: default;
+    }
+    .chess-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 100px;
+      justify-content: center;
+    }
+
+    .chess-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .chess-btn:active {
+      transform: translateY(0);
+    }
+
+    .chess-btn-primary {
+      background: #22ac38;
+      color: white;
+    }
+
+    .chess-btn-primary:hover {
+      background: #1e9632;
+    }
+
+    .chess-btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .chess-btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .chess-btn-accent {
+      background: #6f4ef2;
+      color: white;
+    }
+
+    .chess-btn-accent:hover {
+      background: #5d42d1;
     }
     .mark {
       position: absolute;
@@ -558,6 +632,38 @@ const injectStyles = () => {
       0% { transform: translate(-50%, -50%) scale(0); }
       100% { transform: translate(-50%, -50%) scale(1); }
     }
+    
+    .zen-toggle {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      margin-top: 15px;
+    }
+    
+    .zen-toggle:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.1);
+    }
+    
+    .zen-controls {
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    
+    .zen-controls.hidden {
+      opacity: 0;
+      transform: translateY(20px);
+      pointer-events: none;
+    }
   `;
   document.head.appendChild(style);
 };
@@ -588,6 +694,46 @@ const setupBoard = fenCode => {
 const attachEventListeners = () => {
   document.getElementById("flipBtn").addEventListener("click", flipBoard);
   document.getElementById("zenBtn").addEventListener("click", toggleZenMode);
+  document.getElementById("hintBtn").addEventListener("click", hintMove);
+  document.getElementById("viewNextBtn").addEventListener("click", viewNextMove);
+};
+
+const viewNextMove = () => {
+  if (!gameState.isPuzzleMode || gameState.currentMoveIndex >= gameState.puzzleMoves.length) return;
+
+  const nextMove = gameState.puzzleMoves[gameState.currentMoveIndex];
+  if (nextMove) {
+    const from = nextMove.slice(0, 2);
+    const to = nextMove.slice(2, 4);
+
+    makeMove(from, to, { isUserMove: true, animate: true });
+
+    gameState.hasIncorrectMoves = true;
+    savePuzzleAttempt({
+      fen: gameState.puzzleFen,
+      puzzleId: gameState.puzzleId,
+      isSolved: false,
+      timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
+    });
+  }
+};
+
+const hintMove = () => {
+  if (!gameState.isPuzzleMode || gameState.currentMoveIndex >= gameState.puzzleMoves.length) return;
+
+  const nextMove = gameState.puzzleMoves[gameState.currentMoveIndex];
+  if (nextMove) {
+    const from = nextMove.slice(0, 2);
+    highlightSquare(from, true);
+
+    gameState.hasIncorrectMoves = true;
+    savePuzzleAttempt({
+      fen: gameState.puzzleFen,
+      puzzleId: gameState.puzzleId,
+      isSolved: false,
+      timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
+    });
+  }
 };
 
 const flipBoard = () => {
@@ -605,15 +751,62 @@ const flipBoard = () => {
   });
 };
 
+const toggleZenModeManually = shouldEnable => {
+  const zenMode = document.getElementById("zenMode");
+  const isZenModeActive = !!zenMode;
+
+  if (shouldEnable && !isZenModeActive) {
+    toggleZenMode();
+  } else if (!shouldEnable && isZenModeActive) {
+    toggleZenMode();
+  }
+};
+
+const toggleZenControls = (eyeToggle, forceState = null) => {
+  if (!document.getElementById("zenMode")) return;
+  
+  const buttonsDiv = document.getElementById("chess-buttons");
+  const statusDiv = document.getElementById("status");
+
+  const currentlyVisible = !buttonsDiv?.classList.contains("hidden");
+  const shouldShow = forceState !== null ? forceState : !currentlyVisible;
+
+  eyeToggle.innerHTML = shouldShow ? "👀" : "🫥";
+
+  if (buttonsDiv) {
+    buttonsDiv.classList.toggle("hidden", !shouldShow);
+  }
+  if (statusDiv) {
+    statusDiv.classList.toggle("hidden", !shouldShow);
+  }
+
+  return shouldShow;
+};
+
 const toggleZenMode = () => {
   const zenMode = document.getElementById("zenMode");
   const chessContainer = document.getElementById("chess-container");
+  const status = document.getElementById("status");
 
   if (zenMode) {
     const mainFeed = document.querySelector("main");
     mainFeed.appendChild(chessContainer);
     zenMode.remove();
     document.body.style.overflow = "auto";
+
+    const eyeToggle = document.querySelector(".zen-toggle");
+    if (eyeToggle) eyeToggle.remove();
+
+    // Restore original text color and show controls
+    if (status) status.style.color = "";
+
+    const buttonsDiv = document.getElementById("chess-buttons");
+    if (buttonsDiv) {
+      buttonsDiv.classList.remove("zen-controls", "hidden");
+    }
+    if (status) {
+      status.classList.remove("zen-controls", "hidden");
+    }
   } else {
     const zenContainer = document.createElement("div");
     zenContainer.id = "zenMode";
@@ -630,26 +823,54 @@ const toggleZenMode = () => {
       align-items: center;
     `;
 
+    const eyeToggle = document.createElement("button");
+    eyeToggle.className = "zen-toggle";
+    eyeToggle.innerHTML = "🫥";
+    eyeToggle.title = "Toggle controls visibility";
+
+    eyeToggle.addEventListener("click", () => {
+      toggleZenControls(eyeToggle);
+    });
+
+    const statusDiv = chessContainer.querySelector("#status");
+    if (statusDiv) {
+      statusDiv.insertAdjacentElement("afterend", eyeToggle);
+    }
+
     zenContainer.appendChild(chessContainer);
     document.body.appendChild(zenContainer);
     document.body.style.overflow = "hidden";
 
+    // Force white text in zen mode and add zen-controls class
+    if (status) {
+      status.style.color = "white";
+      status.classList.add("zen-controls");
+    }
+
+    const buttonsDiv = document.getElementById("chess-buttons");
+    if (buttonsDiv) buttonsDiv.classList.add("zen-controls");
+
+    toggleZenControls(eyeToggle, false);
+
     zenContainer.addEventListener("click", e => {
-      if (e.target === zenContainer) toggleZenMode();
+      if (e.target === zenContainer) {
+        toggleZenControls(eyeToggle);
+        toggleZenMode();
+      }
     });
   }
 };
 
-const applySettings = (settings, mutationDetected = false) => {
-  if (gameState.isPuzzleMode) initiatePuzzle();
-
-  if (gameState.isPuzzleMode && settings?.autoZenMode && !mutationDetected) {
-    toggleZenMode();
-  }
-
+const applyGeneralSettings = settings => {
   if (settings?.hideLayoutAside) {
     const layoutRef = document.querySelector(layoutAside);
     if (layoutRef) layoutRef.remove();
+  }
+};
+
+const applyPuzzleSettings = (settings, mutationDetected = false) => {
+  if (settings?.autoZenMode && !mutationDetected) {
+    toggleZenMode();
   }
 };
 
@@ -660,7 +881,8 @@ const setupPuzzle = (dailyChess, settings = {}, mutationDetected = false) => {
   gameState.isPuzzleMode = true;
 
   createChessboard(dailyChess.fen);
-  applySettings(settings, mutationDetected);
+  initiatePuzzle();
+  applyPuzzleSettings(settings, mutationDetected);
 };
 
 const getSettings = async () => {
@@ -672,6 +894,7 @@ const main = async (mutationDetected = false) => {
   if (!checkSite()) return;
 
   const settings = await getSettings();
+  applyGeneralSettings(settings);
   if (settings?.dailyPuzzlesDisabled) return;
 
   const dailyChess = await getDailyChess();

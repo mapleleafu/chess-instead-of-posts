@@ -3,3 +3,4 @@
 .check { background-image: radial-gradient(ellipse at center, rgb(255, 0, 0) 0%, rgb(231, 0, 0) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%) !important; }
 .square-55d63.white-1e1d7.last-move { background-color: #cdd26a !important; }
 .square-55d63.black-3c85d.last-move { background-color: #aaa23a !important; }
+.hint { background-image: radial-gradient(ellipse at center, rgb(0, 255, 0) 0%, rgb(0, 231, 0) 25%, rgba(0, 169, 0, 0) 89%, rgba(0, 158, 0, 0) 100%) !important; }
