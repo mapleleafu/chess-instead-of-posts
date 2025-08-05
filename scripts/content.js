@@ -92,6 +92,7 @@ const savePuzzleAttempt = options => {
 
   chrome.storage.local.get("PUZZLE_ATTEMPTS", result => {
     const attempts = result.PUZZLE_ATTEMPTS || [];
+    const existingAttempt = attempts.find(attempt => attempt.puzzleId === puzzleId || attempt.fen === fen);
     const existingIndex = attempts.findIndex(attempt => attempt.puzzleId === puzzleId);
 
     const attempt = {
@@ -100,12 +101,28 @@ const savePuzzleAttempt = options => {
       isSolved,
       timestamp: new Date().toISOString(),
       timeSpentSeconds,
+      isFinished: isSolved || false,
     };
 
-    // Only save if attempt doesn't already exist
-    if (existingIndex === -1) attempts.push(attempt);
+    if (existingIndex === -1) { // New attempt
+      attempts.push(attempt);
+    } else if (isSolved && !existingAttempt.isFinished) {
+      existingAttempt.isFinished = true;
+    }
 
     chrome.storage.local.set({ PUZZLE_ATTEMPTS: attempts });
+  });
+};
+
+const checkPuzzleSolved = async (fen, puzzleId) => {
+  if (!fen || !puzzleId) return false;
+
+  return new Promise(resolve => {
+    chrome.storage.local.get("PUZZLE_ATTEMPTS", result => {
+      const attempts = result.PUZZLE_ATTEMPTS || [];
+      const attempt = attempts.find(attempt => attempt.puzzleId === puzzleId || attempt.fen === fen);
+      resolve(attempt ? attempt.isFinished : false);
+    });
   });
 };
 
@@ -257,7 +274,7 @@ const validateUserMove = move => {
       updateStatus("Success! Puzzle completed.");
       gameState.isPuzzleMode = false;
       toggleLockBoard(false);
-      
+
       if (!gameState.hasIncorrectMoves) {
         savePuzzleAttempt({
           fen: gameState.puzzleFen,
@@ -276,7 +293,7 @@ const validateUserMove = move => {
     playSound("Error");
     putMark(move.to, false);
     updateStatus("That's not the move! Try something else.");
-    
+
     if (!gameState.hasIncorrectMoves) {
       gameState.hasIncorrectMoves = true;
       savePuzzleAttempt({
@@ -398,6 +415,49 @@ const getMarksOnSquares = () => {
   });
   return marks;
 };
+
+const createCompletionMessage = (dailyChess, mutationDetected) => {
+  const mainFeed = document.querySelector("main");
+  if (!mainFeed) return;
+
+  removeExistingElements();
+
+  const container = document.createElement("div");
+  container.id = "chess-container";
+  applyContainerStyles(container);
+  container.innerHTML = getCompletionMessageHTML();
+
+  mainFeed.appendChild(container);
+
+  document.getElementById("solveAgainBtn").addEventListener("click", async () => {
+    const settings = await getSettings();
+    setupPuzzle(dailyChess, settings, mutationDetected);
+  });
+};
+
+const applyContainerStyles = container => {
+  container.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background: gray;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.15);
+    margin: 20px auto;
+    max-width: 500px;
+    text-align: center;
+  `;
+};
+
+const getCompletionMessageHTML = () => `
+  <div style="font-size: 24px; margin-bottom: 20px;">
+    You've solved today's chess puzzle! 😊
+  </div>
+  <button id="solveAgainBtn" style="padding: 10px 20px; cursor: pointer; background: white; border: 1px solid #ccc; border-radius: 4px;">
+    Solve Again
+  </button>
+`;
 
 const createChessboard = fenCode => {
   const mainFeed = document.querySelector("main");
@@ -583,7 +643,7 @@ const toggleZenMode = () => {
 const applySettings = (settings, mutationDetected = false) => {
   if (gameState.isPuzzleMode) initiatePuzzle();
 
-  if (settings?.autoZenMode && !mutationDetected) {
+  if (gameState.isPuzzleMode && settings?.autoZenMode && !mutationDetected) {
     toggleZenMode();
   }
 
@@ -593,21 +653,36 @@ const applySettings = (settings, mutationDetected = false) => {
   }
 };
 
-const main = async (mutationDetected = false) => {
-  if (!checkSite()) return;
-
-  const { settings } = await chrome.storage.local.get("settings");
-  if (settings?.dailyPuzzlesDisabled) return;
-
-  const dailyChess = await getDailyChess();
-  console.log("Daily Chess Puzzle:", dailyChess);
-
+const setupPuzzle = (dailyChess, settings = {}, mutationDetected = false) => {
   gameState.puzzleMoves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
   gameState.puzzleId = dailyChess.id || null;
   gameState.puzzleFen = dailyChess.fen || null;
+  gameState.isPuzzleMode = true;
 
   createChessboard(dailyChess.fen);
   applySettings(settings, mutationDetected);
+};
+
+const getSettings = async () => {
+  const { settings } = await chrome.storage.local.get("settings");
+  return settings || {};
+};
+
+const main = async (mutationDetected = false) => {
+  if (!checkSite()) return;
+
+  const settings = await getSettings();
+  if (settings?.dailyPuzzlesDisabled) return;
+
+  const dailyChess = await getDailyChess();
+  const isFinished = await checkPuzzleSolved(dailyChess.fen, dailyChess.id);
+
+  if (isFinished) {
+    createCompletionMessage(dailyChess, mutationDetected);
+    return;
+  }
+
+  setupPuzzle(dailyChess, settings, mutationDetected);
 };
 
 const observer = new MutationObserver(mutations => {
