@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   loadStatistics();
   initSettings();
+  initInsightsToggle();
 
   document.getElementById("dateRange").addEventListener("change", function () {
     loadStatistics();
@@ -346,38 +347,99 @@ function generateInsights(stats) {
   const insights = [];
   const container = document.getElementById("insightsContainer");
 
-  if (stats.solveRate >= 90) {
-    insights.push("• Excellent! You're solving 90%+ of puzzles.");
+  if (stats.solveRate >= 95) {
+    insights.push("• Outstanding! You're in the top tier with 95%+ solve rate.");
+  } else if (stats.solveRate >= 90) {
+    insights.push("• Excellent! You're solving 90%+ of puzzles consistently.");
+  } else if (stats.solveRate >= 80) {
+    insights.push("• Great work! You're solving 80%+ puzzles. Push for 90%!");
   } else if (stats.solveRate >= 70) {
-    insights.push("• Good performance! Keep practicing to reach 90%.");
-  } else if (stats.solveRate < 50) {
-    insights.push("• Focus on pattern recognition to improve your solve rate.");
+    insights.push("• Good performance! Focus on tactical patterns to reach 80%.");
+  } else if (stats.solveRate >= 50) {
+    insights.push("• Room for improvement. Study common tactical motifs.");
+  } else if (stats.total > 0) {
+    insights.push("• Focus on pattern recognition and take your time analyzing.");
   }
 
-  if (stats.avgTime < 15) {
+  if (stats.avgTime < 10) {
+    insights.push("• Blazing speed! Your pattern recognition is exceptional.");
+  } else if (stats.avgTime < 15) {
     insights.push("• Lightning fast! You're solving puzzles very quickly.");
+  } else if (stats.avgTime < 30) {
+    insights.push("• Good speed! Balance between accuracy and quick recognition.");
+  } else if (stats.avgTime < 60) {
+    insights.push("• Steady pace. Try to spot key pieces and threats faster.");
+  } else if (stats.avgTime > 90) {
+    insights.push("• Take time to analyze, but practice recognizing common patterns.");
   } else if (stats.avgTime > 60) {
-    insights.push("• Take your time, but try to recognize patterns faster.");
+    insights.push("• Consider studying tactical patterns to improve speed.");
   }
 
-  if (stats.streak >= 7) {
-    insights.push(`• Amazing ${stats.streak}-day streak! You're on fire!`);
+  if (stats.streak >= 30) {
+    insights.push(`• Incredible ${stats.streak}-day streak! You're a puzzle master!`);
+  } else if (stats.streak >= 14) {
+    insights.push(`• Amazing ${stats.streak}-day streak! Keep the momentum going!`);
+  } else if (stats.streak >= 7) {
+    insights.push(`• Great ${stats.streak}-day streak! Consistency is paying off!`);
+  } else if (stats.streak >= 3) {
+    insights.push(`• Nice ${stats.streak}-day streak building up! Keep it going!`);
   } else if (stats.streak === 0 && stats.total > 0) {
-    insights.push("• Start a new streak today! Consistency is key.");
+    insights.push("• Start a new streak today! Daily practice builds chess vision.");
   }
 
-  if (stats.bestStreak >= 14) {
-    insights.push(`• Your best streak of ${stats.bestStreak} days is impressive!`);
+  if (stats.bestStreak >= 30) {
+    insights.push(`• Your best streak of ${stats.bestStreak} days shows incredible dedication!`);
+  } else if (stats.bestStreak >= 14) {
+    insights.push(`• Your best streak of ${stats.bestStreak} days is impressive! Can you beat it?`);
+  } else if (stats.bestStreak >= 7) {
+    insights.push(`• Your ${stats.bestStreak}-day best streak shows good consistency habits.`);
   }
 
-  if (stats.fastestSolve && stats.fastestSolve < 10) {
-    insights.push(`• Your fastest solve in ${stats.fastestSolve.toFixed(1)}s shows great pattern recognition!`);
+  if (stats.fastestSolve && stats.fastestSolve < 5) {
+    insights.push(`• Incredible! Your fastest solve in ${stats.fastestSolve.toFixed(1)}s is lightning speed!`);
+  } else if (stats.fastestSolve && stats.fastestSolve < 10) {
+    insights.push(`• Your fastest solve in ${stats.fastestSolve.toFixed(1)}s shows excellent pattern recognition!`);
+  } else if (stats.fastestSolve && stats.fastestSolve < 20) {
+    insights.push(`• Good quick recognition! Your fastest solve: ${stats.fastestSolve.toFixed(1)}s.`);
   }
 
-  if (insights.length === 0 && stats.total === 0) {
-    insights.push("• Start solving puzzles to see personalized insights!");
+  if (stats.total >= 500) {
+    insights.push("• Wow! 500+ puzzles solved. You're building serious tactical strength!");
+  } else if (stats.total >= 200) {
+    insights.push("• Great dedication! 200+ puzzles will significantly improve your game.");
+  } else if (stats.total >= 100) {
+    insights.push("• Good progress! 100+ puzzles solved is building your pattern library.");
+  } else if (stats.total >= 50) {
+    insights.push("• Nice start! Keep solving to build your tactical foundation.");
+  } else if (stats.total >= 20) {
+    insights.push("• Getting started! Each puzzle strengthens your chess vision.");
+  }
+
+  if (stats.solveRate < 70 && stats.avgTime > 45) {
+    insights.push("• Try studying basic tactical patterns: pins, forks, and skewers.");
+  } else if (stats.solveRate >= 80 && stats.avgTime > 60) {
+    insights.push("• Your accuracy is good! Now work on recognizing patterns faster.");
+  } else if (stats.solveRate < 60 && stats.avgTime < 20) {
+    insights.push("• Slow down and analyze more carefully before making your move.");
+  }
+
+  if (stats.total === 0) {
+    insights.push("• Welcome! Start solving puzzles to track your chess improvement!");
+    insights.push("• Daily puzzle practice is one of the fastest ways to improve at chess.");
   } else if (insights.length === 0) {
-    insights.push("• Keep solving puzzles to unlock more insights!");
+    insights.push("• Keep practicing! Every puzzle makes you a stronger player.");
+  }
+
+  if (stats.trends && stats.trends.solveRate > 10) {
+    insights.push(`• Trending up! Your solve rate improved by ${stats.trends.solveRate.toFixed(1)}% recently.`);
+  } else if (stats.trends && stats.trends.solveRate < -10) {
+    insights.push("• Recent dip in performance. Take your time and focus on accuracy.");
+  }
+
+  if (stats.trends && stats.trends.avgTime < -10) {
+    insights.push("• Getting faster! Your solving speed has improved recently.");
+  } else if (stats.trends && stats.trends.avgTime > 15) {
+    insights.push("• Taking more time lately. Ensure you maintain accuracy while speeding up.");
   }
 
   container.innerHTML = insights.map(insight => `<div class="insight-item">${insight}</div>`).join("");
@@ -782,4 +844,75 @@ function saveSettings() {
     soundVolume: document.getElementById("soundVolume").value,
   };
   chrome.storage.local.set({ settings });
+}
+
+function initInsightsToggle() {
+  chrome.storage.local.get("insightsVisible", function (data) {
+    const isVisible = data.insightsVisible !== false;
+    const container = document.getElementById("insightsContainer");
+    const section = document.querySelector(".insights-section");
+
+    if (container && section) {
+      if (!isVisible) {
+        container.style.maxHeight = "0";
+        container.style.opacity = "0";
+        container.style.marginBottom = "0";
+      } else {
+        container.style.maxHeight = "none";
+        container.style.opacity = "1";
+        container.style.marginBottom = "";
+      }
+
+      const title = document.querySelector(".insights-title");
+      if (title) {
+        const toggleBtn = document.createElement("button");
+        toggleBtn.className = "insights-toggle";
+        toggleBtn.innerHTML = isVisible ? "▼" : "▶";
+        toggleBtn.style.cssText = `
+          background: none;
+          border: none;
+          color: #667eea;
+          cursor: pointer;
+          font-size: 12px;
+          margin-left: auto;
+          padding: 4px 8px;
+          border-radius: 4px;
+          transition: all 0.2s;
+          font-family: monospace;
+          font-weight: bold;
+        `;
+
+        toggleBtn.addEventListener("click", function () {
+          const isCurrentlyVisible = container.style.maxHeight !== "0px";
+          const newVisibility = !isCurrentlyVisible;
+
+          if (newVisibility) {
+            container.style.maxHeight = "500px";
+            container.style.opacity = "1";
+            container.style.marginBottom = "";
+            toggleBtn.innerHTML = "▼";
+          } else {
+            container.style.maxHeight = "0";
+            container.style.opacity = "0";
+            container.style.marginBottom = "0";
+            toggleBtn.innerHTML = "▶";
+          }
+
+          chrome.storage.local.set({ insightsVisible: newVisibility });
+        });
+
+        toggleBtn.addEventListener("mouseenter", function () {
+          this.style.backgroundColor = "rgba(102, 126, 234, 0.1)";
+          this.style.transform = "scale(1.1)";
+        });
+
+        toggleBtn.addEventListener("mouseleave", function () {
+          this.style.backgroundColor = "transparent";
+          this.style.transform = "scale(1)";
+        });
+
+        title.appendChild(toggleBtn);
+      }
+    }
+  });
 }
