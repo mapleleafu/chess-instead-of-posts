@@ -170,7 +170,7 @@ const playSound = soundName => {
     if (!sound || settings.soundsDisabled) return;
 
     sound.volume = (settings.soundVolume || 100) / 100;
-    sound.play().catch(err => console.error("Error playing sound:", err));
+    sound.play().catch(() => {});
   });
 };
 
@@ -199,12 +199,31 @@ const updateStatusText = () => {
   }
 };
 
+const loadPuzzlesFromCSV = async () => {
+  const response = await fetch(chrome.runtime.getURL("static/puzzles.csv"));
+  const csvText = await response.text();
+  const lines = csvText
+    .split("\n")
+    .slice(1)
+    .filter(line => line.trim());
+
+  const puzzles = lines.map(line => {
+    const [id, fen, moves] = line.split(",");
+    return { id, fen, moves };
+  });
+
+  await chrome.storage.local.set({
+    PUZZLES: puzzles,
+    TOTAL_PUZZLES: puzzles.length,
+  });
+
+  return { PUZZLES: puzzles, TOTAL_PUZZLES: puzzles.length };
+};
+
 const getDailyChess = async () => {
   let result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
 
   if (!result.PUZZLES || !result.TOTAL_PUZZLES) {
-    console.log("Puzzles not in storage, retrying...");
-
     for (let i = 0; i < 3; i++) {
       await new Promise(resolve => setTimeout(resolve, 500));
       result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
@@ -212,25 +231,7 @@ const getDailyChess = async () => {
     }
 
     if (!result.PUZZLES || !result.TOTAL_PUZZLES) {
-      console.log("Loading puzzles from CSV as fallback...");
-      const response = await fetch(chrome.runtime.getURL("static/puzzles.csv"));
-      const csvText = await response.text();
-      const lines = csvText
-        .split("\n")
-        .slice(1)
-        .filter(line => line.trim());
-
-      const puzzles = lines.map(line => {
-        const [id, fen, moves] = line.split(",");
-        return { id, fen, moves };
-      });
-
-      await chrome.storage.local.set({
-        PUZZLES: puzzles,
-        TOTAL_PUZZLES: puzzles.length,
-      });
-
-      result = { PUZZLES: puzzles, TOTAL_PUZZLES: puzzles.length };
+      result = await loadPuzzlesFromCSV();
     }
   }
 
@@ -294,7 +295,7 @@ const validateUserMove = move => {
     }
 
     updateStatus("Best move! Keep going...");
-    setTimeout(() => makeOpponentMove(gameState.puzzleMoves[gameState.currentMoveIndex]), 500);
+    setTimeout(() => makeOpponentMove(gameState.puzzleMoves[gameState.currentMoveIndex]), 3500);
     return true;
   } else {
     playSound("Error");
@@ -685,7 +686,7 @@ const setupBoard = fenCode => {
     snapbackSpeed: 0,
     onSnapEnd,
     orientation,
-    pieceTheme: piece => chrome.runtime.getURL(`libs/img/chesspieces/${piece}.png`),
+    pieceTheme: piece => chrome.runtime.getURL(`static/images/chessPieces/${piece}.png`),
   };
 
   gameState.board = window.Chessboard("board", config);
@@ -764,7 +765,7 @@ const toggleZenModeManually = shouldEnable => {
 
 const toggleZenControls = (eyeToggle, forceState = null) => {
   if (!document.getElementById("zenMode")) return;
-  
+
   const buttonsDiv = document.getElementById("chess-buttons");
   const statusDiv = document.getElementById("status");
 
