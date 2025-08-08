@@ -36,11 +36,18 @@
         "libs/jquery-3.5.1.min.js",
         "libs/chess.js",
         "libs/chessboard-1.0.0.js",
+        "libs/glicko2.js",
         "scripts/content.js"
       ],
       "css": [
         "libs/chessboard-1.0.0.css",
-        "styles/main.css"
+        "styles/main.css",
+        "styles/components/buttons.css",
+        "styles/components/rating-card.css",
+        "styles/components/completion.css",
+        "styles/components/board-overrides.css",
+        "styles/components/zen-mode.css",
+        "styles/components/modal.css"
       ],
       "matches": [
         "*://*.linkedin.com/*"
@@ -58,7 +65,8 @@
     {
       "resources": [
         "libs/*",
-        "static/*"
+        "static/*",
+        "templates/*"
       ],
       "matches": [
         "*://*.linkedin.com/*"

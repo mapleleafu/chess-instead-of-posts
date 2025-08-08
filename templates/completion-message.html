@@ -1,0 +1,38 @@
+<div class="completion-hero {{statusClass}}">
+  <div class="hero-shine"></div>
+  <div class="hero-content">
+    <div class="hero-icon">{{statusIcon}}</div>
+    <h1 class="hero-title">{{statusTitle}}</h1>
+    <p class="hero-sub">{{statusSubtitle}}</p>
+  </div>
+</div>
+
+<div class="completion-stats-grid">
+  <div class="stat-card">
+    <div class="stat-label">Your Rating</div>
+    <div class="stat-value rating-value">{{userRating}}</div>
+    <div class="tier-chip" style="--tier-color: {{userTierColor}};">
+      <span class="tier-chip-icon">{{userTierIcon}}</span>
+      <span>{{userTierName}}</span>
+    </div>
+    {{ratingDeltaHtml}}
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Puzzle Rating</div>
+    <div class="stat-value">{{puzzleRating}}</div>
+    <div class="diff-chip" style="--diff-color: {{difficultyColor}};">
+      <span>{{difficultyLabel}}</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Time Spent</div>
+    <div class="stat-value">{{timeSpent}}</div>
+  </div>
+</div>
+
+<div class="completion-actions">
+  <button id="solveAgainBtn" class="chess-btn chess-btn-primary large-btn">
+    <span>🔄</span><span>Replay Puzzle</span>
+  </button>
+</div>
+<div class="next-info" id="nextInfo"></div>

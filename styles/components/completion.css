@@ -1,0 +1,221 @@
+#chess-container.completion-container {
+  max-width: 640px;
+}
+#chess-container .completion-hero {
+  width: 100%;
+  position: relative;
+  border-radius: 20px;
+  padding: 38px 28px 56px;
+  overflow: hidden;
+  margin-bottom: 28px;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  animation: heroIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+#chess-container .completion-hero.success {
+  background: linear-gradient(135deg, #14532d, #166534 40%, #1d9b4d);
+}
+#chess-container .completion-hero.failed {
+  background: linear-gradient(135deg, #3f0d12, #7f1d1d 50%, #991b1b);
+}
+#chess-container .hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: #fff;
+}
+#chess-container .hero-icon {
+  font-size: 56px;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+  animation: floatIcon 4s ease-in-out infinite;
+}
+#chess-container .hero-title {
+  color: #fff;
+  margin: 10px 0 4px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+#chess-container .hero-sub {
+  color: #fff;
+  margin: 0;
+  opacity: 0.85;
+  font-size: 15px;
+  font-weight: 500;
+}
+#chess-container .hero-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.25), transparent 60%),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.15), transparent 65%);
+  mix-blend-mode: overlay;
+  animation: shineMove 8s linear infinite;
+}
+#chess-container .confetti-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+#chess-container .confetti {
+  position: absolute;
+  top: -10px;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  to {
+    transform: translateY(340px) rotate(720deg);
+    opacity: 0;
+  }
+}
+@keyframes shineMove {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4%);
+  }
+}
+@keyframes heroIn {
+  0% {
+    transform: translateY(30px) scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes floatIcon {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+#chess-container .completion-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 26px;
+}
+#chess-container .stat-card {
+  background: linear-gradient(135deg, rgb(30, 41, 59) 0%, rgb(15, 23, 42) 100%);
+  position: relative;
+  border-radius: 16px;
+  padding: 16px 14px 18px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07), 0 0 0 1px #eef;
+  overflow: hidden;
+}
+#chess-container .stat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+#chess-container .stat-card:hover::after {
+  opacity: 1;
+}
+#chess-container .stat-label {
+  font-size: 10px;
+  letter-spacing: 1.3px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+#chess-container .stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+#chess-container .rating-value {
+  color: #fff;
+  font-family: "SF Mono", "Monaco", "Consolas", monospace;
+}
+#chess-container .tier-chip,
+#chess-container .diff-chip,
+#chess-container .delta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 10px;
+  color: #fff;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+#chess-container .tier-chip {
+  background: var(--tier-color);
+}
+#chess-container .diff-chip {
+  background: var(--diff-color);
+}
+#chess-container .delta-chip {
+  background: #0f172a;
+  font-weight: 700;
+}
+#chess-container .delta-chip.delta-up {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+}
+#chess-container .delta-chip.delta-down {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+#chess-container .sub-meta {
+  font-size: 11px;
+  margin-top: 8px;
+  font-weight: 500;
+  color: #6b7280;
+}
+#chess-container .sub-meta.text-success {
+  color: #16a34a;
+}
+#chess-container .sub-meta.text-fail {
+  color: #dc2626;
+}
+#chess-container .completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+#chess-container .completion-actions .large-btn {
+  flex: 1 1 160px;
+  max-width: 210px;
+  font-size: 15px;
+  padding: 14px 20px;
+  font-weight: 600;
+}
+#chess-container .completion-actions .chess-btn span:first-child {
+  font-size: 18px;
+}
+#chess-container .next-info {
+  margin-top: 18px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+#chess-container .rating-battle-wrapper {
+  width: 100%;
+  margin: 6px 0 20px;
+}

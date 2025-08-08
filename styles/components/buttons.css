@@ -1,0 +1,56 @@
+#chess-container .chess-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 100px;
+  justify-content: center;
+}
+#chess-container .chess-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+#chess-container .chess-btn:active {
+  transform: translateY(0);
+}
+#chess-container .chess-btn-primary {
+  background: #22ac38;
+  color: #fff;
+}
+#chess-container .chess-btn-primary:hover {
+  background: #1e9632;
+}
+#chess-container .chess-btn-secondary {
+  background: #6c757d;
+  color: #fff;
+}
+#chess-container .chess-btn-secondary:hover {
+  background: #5a6268;
+}
+#chess-container .chess-btn-accent {
+  background: #6f4ef2;
+  color: #fff;
+}
+#chess-container .chess-btn-accent:hover {
+  background: #5d42d1;
+}
+#chess-container .chess-btn.pulse {
+  animation: btnPulse 0.85s ease-in-out;
+}
+@keyframes btnPulse {
+  0% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

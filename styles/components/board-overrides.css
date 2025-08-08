@@ -1,0 +1,76 @@
+#chess-container .piece-417db {
+  z-index: 2 !important;
+  cursor: pointer;
+}
+#chess-container .piece-417db.dragging-piece {
+  z-index: 3 !important;
+}
+#chess-container {
+  position: relative;
+  z-index: 1;
+}
+body > .piece-417db {
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+}
+#chess-container #board .square-55d63 {
+  cursor: default;
+}
+#chess-container .mark {
+  position: absolute;
+  top: 0%;
+  left: 90%;
+  transform: translate(-50%, -50%);
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 18px;
+  z-index: 10000;
+  animation: markPop 0.2s ease-out;
+}
+#chess-container .mark.no-animation {
+  animation: none !important;
+}
+#chess-container .mark.correct {
+  background: #22ac38;
+}
+#chess-container .mark.incorrect {
+  background: #ff2d2d;
+}
+@keyframes markPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+#chess-container #confetti-overlay {
+  pointer-events: none;
+}
+#chess-container .board-confetti {
+  position: absolute;
+  top: 0;
+  will-change: transform, opacity;
+  border-radius: 2px;
+  animation: boardConfettiFall linear forwards;
+}
+@keyframes boardConfettiFall {
+  0% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(380px) rotate(720deg);
+    opacity: 0;
+  }
+}

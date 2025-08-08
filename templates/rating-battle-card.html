@@ -1,0 +1,50 @@
+<div class="rating-battle-card {{difficultyClass}}">
+  <!-- Your Side -->
+  <div class="rating-player-side your-side">
+    <div class="side-glow"></div>
+    <div class="chess-piece-container">
+      <div class="chess-piece-bg">♔</div>
+      <div class="piece-shadow"></div>
+    </div>
+    <div class="rating-content">
+      <div class="rating-label">YOUR RATING</div>
+      <div class="rating-main" title="±{{userRatingRd}} RD">
+        <span class="rating-number">{{userRating}}</span>
+        <div class="tier-badge" style="--tier-color: {{userTierColor}};">
+          <span class="tier-icon">{{userTierIcon}}</span>
+          <span class="tier-name">{{userTierName}}</span>
+        </div>
+      </div>
+      {{ratingChangeHtml}}
+    </div>
+  </div>
+
+  <!-- VS Divider -->
+  <div class="vs-divider">
+    <div class="vs-line top"></div>
+    <div class="vs-circle">
+      <span class="vs-text">VS</span>
+      <div class="vs-pulse"></div>
+    </div>
+    <div class="vs-line bottom"></div>
+  </div>
+
+  <!-- Puzzle Side -->
+  <div class="rating-player-side puzzle-side">
+    <div class="side-glow puzzle-glow"></div>
+    <div class="chess-piece-container">
+      <div class="chess-piece-bg puzzle-piece">♚</div>
+      <div class="piece-shadow"></div>
+    </div>
+    <div class="rating-content">
+      <div class="rating-label">PUZZLE RATING</div>
+      <div class="rating-main">
+        <span class="rating-number">{{puzzleRating}}</span>
+        <div class="difficulty-badge" style="--diff-color: {{puzzleDiffColor}};">
+          <span class="diff-icon">{{difficultyIcon}}</span>
+          <span class="diff-name">{{puzzleDiffLabel}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

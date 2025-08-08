@@ -2,8 +2,8 @@ chrome.runtime.onInstalled.addListener(() => {
   fetch(chrome.runtime.getURL("static/puzzles.csv"))
     .then((response) => response.text())
     .then((csv) => {
-      const PUZZLES = parseCSV(csv);
-      chrome.storage.local.set({ PUZZLES, TOTAL_PUZZLES: PUZZLES.length });
+      const puzzles = parseCSV(csv);
+      chrome.storage.local.set({ puzzles, totalPuzzles: puzzles.length });
     });
 });
 
@@ -13,8 +13,8 @@ function parseCSV(csv) {
     .slice(1) // skip header
     .filter((line) => line.trim())
     .map((line) => {
-      const [id, fen, moves] = line.split(",");
-      return { id, fen, moves };
+      const [id, fen, moves, rating, ratingDeviation] = line.split(",");
+      return { id, fen, moves, rating, ratingDeviation };
     });
   return puzzles;
 }

@@ -1,29 +1,263 @@
-const gameState = {
+const boardState = {
   board: null,
   game: null,
-  puzzleMoves: null,
-  puzzleId: null,
-  puzzleFen: null,
-  currentMoveIndex: 0,
   isBoardLocked: false,
-  isPuzzleMode: true,
-  puzzleStartTime: null,
-  hasIncorrectMoves: false,
 };
 
-const sounds = {
-  Move: new Audio(chrome.runtime.getURL("static/sounds/Move.mp3")),
-  Capture: new Audio(chrome.runtime.getURL("static/sounds/Capture.mp3")),
-  Victory: new Audio(chrome.runtime.getURL("static/sounds/Victory.mp3")),
-  Error: new Audio(chrome.runtime.getURL("static/sounds/Error.mp3")),
+const puzzleState = {
+  moves: null,
+  id: null,
+  fen: null,
+  currentMoveIndex: 0,
+  isPuzzleMode: true,
+  startTime: null,
+  hasIncorrectMoves: false,
+  rating: null,
+  ratingDeviation: null,
+};
+
+const userState = {
+  rating: null,
+  glickoRanking: null,
+  isRatingUpdated: false,
+  ratingChange: null,
+};
+
+const templates = {};
+
+const loadTemplate = async templateName => {
+  if (templates[templateName]) {
+    return templates[templateName];
+  }
+
+  try {
+    const response = await fetch(chrome.runtime.getURL(`templates/${templateName}.html`));
+    const html = await response.text();
+    templates[templateName] = html;
+    return html;
+  } catch (error) {
+    console.error(`Failed to load template ${templateName}:`, error);
+    return "";
+  }
+};
+
+const renderTemplate = (template, data) => {
+  let rendered = template;
+
+  Object.keys(data).forEach(key => {
+    const regex = new RegExp(`\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}\\}`, "g");
+    const value = data[key];
+    rendered = rendered.replace(regex, value || "");
+  });
+
+  return rendered;
 };
 
 const checkSite = () => window.location.href.includes("linkedin.com/feed");
 
-const getMoveColor = () => (gameState.game.turn() === "w" ? "White" : "Black");
+const getMoveColor = () => (boardState.game.turn() === "w" ? "White" : "Black");
+
+const initializeUserRating = async () => {
+  userState.glickoRanking = new glicko2.Glicko2({
+    tau: 0.5,
+    rating: DEFAULT_PUZZLE_RATING,
+    rd: 200,
+    vol: 0.06,
+  });
+
+  const result = await chrome.storage.local.get("userRating");
+  if (result.userRating) {
+    const { rating, rd, volatility } = result.userRating;
+    userState.rating = userState.glickoRanking.makePlayer(rating, rd, volatility);
+  } else {
+    userState.rating = userState.glickoRanking.makePlayer();
+    await saveUserRating();
+  }
+};
+
+const saveUserRating = async () => {
+  if (!userState.rating) return;
+
+  const ratingData = {
+    rating: userState.rating.getRating(),
+    rd: userState.rating.getRd(),
+    volatility: userState.rating.getVol(),
+    lastUpdated: new Date().toISOString(),
+  };
+
+  await chrome.storage.local.set({ userRating: ratingData });
+  userState.isRatingUpdated = true;
+};
+
+const updateUserRating = async isSolved => {
+  if (!userState.rating || !userState.glickoRanking) return;
+
+  const oldRating = userState.rating.getRating();
+
+  // Create puzzle as opponent
+  const puzzle = userState.glickoRanking.makePlayer(puzzleState.rating, puzzleState.ratingDeviation, 0.06);
+
+  // Update ratings based on result
+  const matches = [[userState.rating, puzzle, isSolved ? 1 : 0]];
+  userState.glickoRanking.updateRatings(matches);
+
+  const newRating = userState.rating.getRating();
+  const ratingChange = newRating - oldRating;
+  userState.ratingChange = Math.round(ratingChange);
+
+  await saveUserRating();
+  updateRatingDisplay(ratingChange);
+};
+
+const updateRatingDisplay = async (ratingChange = null) => {
+  if (!userState.rating) return;
+
+  if (ratingChange) {
+    userState.ratingChange = Math.round(ratingChange);
+  }
+
+  await updateRatingCards();
+};
+
+const updateRatingCards = async (hideRatingChange = false) => {
+  let ratingSection = document.getElementById("rating-cards");
+
+  if (!ratingSection) {
+    const container = document.getElementById("chess-container");
+    if (!container) return;
+
+    ratingSection = document.createElement("div");
+    ratingSection.id = "rating-cards";
+    ratingSection.style.cssText = `
+      position: relative;
+      margin-top: 24px;
+    `;
+
+    const chessButtons = document.getElementById("chess-buttons");
+    container.insertBefore(ratingSection, chessButtons);
+  }
+
+  const userRating = Math.round(userState.rating?.getRating() || 1500);
+  const puzzleDiff = puzzleState.rating ? getPuzzleDifficulty(puzzleState.rating) : null;
+  const userTier = getUserTier(userRating);
+
+  const ratingDiff = puzzleState.rating ? puzzleState.rating - userRating : 0;
+  const difficultyClass =
+    ratingDiff > 200 ? "very-hard" : ratingDiff > 0 ? "harder" : ratingDiff > -200 ? "easier" : "very-easy";
+
+  const ratingChangeHtml =
+    userState.ratingChange && !hideRatingChange
+      ? `<div class="rating-change ${userState.ratingChange > 0 ? "positive" : "negative"}">
+         <span class="change-icon">${userState.ratingChange > 0 ? "📈" : "📉"}</span>
+         <span class="change-value">${userState.ratingChange > 0 ? "+" : ""}${userState.ratingChange}</span>
+         <span class="change-label">points</span>
+       </div>`
+      : "";
+
+  const template = await loadTemplate("rating-battle-card");
+  ratingSection.innerHTML = renderTemplate(template, {
+    difficultyClass,
+    userRating,
+    userRatingRd: Math.round(userState.rating.getRd()),
+    userTierColor: userTier.color,
+    userTierIcon: userTier.icon,
+    userTierName: userTier.name,
+    ratingChangeHtml,
+    puzzleRating: puzzleState.rating,
+    puzzleDiffColor: puzzleDiff?.color || "",
+    puzzleDiffLabel: puzzleDiff?.label || "",
+    difficultyIcon: getDifficultyIcon(puzzleDiff?.label),
+  });
+};
+
+const getUserTier = rating => {
+  if (rating < 800) return { icon: "🎯", color: "#94a3b8", name: "Beginner" };
+  if (rating < 1200) return { icon: "🥉", color: "#cd7f32", name: "Bronze" };
+  if (rating < 1600) return { icon: "🥈", color: "#c0c0c0", name: "Silver" };
+  if (rating < 2000) return { icon: "🥇", color: "#ffd700", name: "Gold" };
+  if (rating < 2400) return { icon: "💎", color: "#60a5fa", name: "Diamond" };
+  return { icon: "👑", color: "#a855f7", name: "Master" };
+};
+
+const getDifficultyIcon = difficulty => {
+  const icons = {
+    Beginner: "🌱",
+    Easy: "⚡",
+    Medium: "🔥",
+    Hard: "💪",
+    Expert: "🚀",
+    Master: "🏆",
+  };
+  return icons[difficulty] || "❓";
+};
+
+const showPuzzleRating = async (hideRatingChange = false) => {
+  await updateRatingCards(hideRatingChange);
+};
+
+const updateRatingsHeader = () => {
+  let header = document.getElementById("ratings-header");
+
+  if (!header) {
+    const container = document.getElementById("chess-container");
+    if (!container) return;
+
+    header = document.createElement("div");
+    header.id = "ratings-header";
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 400px;
+      margin-bottom: 12px;
+      padding: 0 4px;
+    `;
+
+    const board = document.getElementById("board");
+    container.insertBefore(header, board);
+  }
+
+  const userRating = Math.round(userState.rating?.getRating() || 1500);
+  const changeText = userState.ratingChange
+    ? `<span style="color: ${userState.ratingChange > 0 ? "#16a34a" : "#dc2626"}; font-weight: 600;">
+      ${userState.ratingChange > 0 ? "+" : ""}${userState.ratingChange}
+    </span>`
+    : "";
+
+  const puzzleDiff = puzzleState.rating ? getPuzzleDifficulty(puzzleState.rating) : null;
+
+  header.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 6px; color: #374151; font-size: 13px;">
+      <span style="font-weight: 600;">You:</span>
+      <span>${userRating}</span>
+      ${changeText}
+    </div>
+    ${
+      puzzleDiff
+        ? `
+      <div style="display: flex; align-items: center; gap: 6px; color: #374151; font-size: 13px;">
+        <span style="font-weight: 600;">Puzzle:</span>
+        <span>${puzzleState.rating}</span>
+        <span style="color: ${puzzleDiff.color}; font-weight: 600;">${puzzleDiff.label}</span>
+      </div>
+    `
+        : ""
+    }
+  `;
+};
+
+const getPuzzleDifficulty = rating => {
+  if (!rating) return { label: "Unrated", color: "#6b7280" };
+  if (rating < 800) return { label: "Beginner", color: "#10b981" };
+  if (rating < 1200) return { label: "Easy", color: "#22c55e" };
+  if (rating < 1600) return { label: "Medium", color: "#f59e0b" };
+  if (rating < 2000) return { label: "Hard", color: "#ef4444" };
+  if (rating < 2400) return { label: "Expert", color: "#dc2626" };
+  return { label: "Master", color: "#7c3aed" };
+};
 
 const getKingSquare = color => {
-  const board = gameState.game.board();
+  const board = boardState.game.board();
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
       const piece = board[rank][file];
@@ -73,8 +307,8 @@ const removeLastMoveHighlight = () => {
 
 const handleCheckHighlights = () => {
   removeCheckHighlight();
-  if (gameState.game.in_check()) {
-    const kingSquare = getKingSquare(gameState.game.turn());
+  if (boardState.game.in_check()) {
+    const kingSquare = getKingSquare(boardState.game.turn());
     kingSquare && highlightCheck(kingSquare);
   }
 };
@@ -90,33 +324,39 @@ const removeCheckHighlight = () => {
   });
 };
 
-const savePuzzleAttempt = options => {
-  const { fen, puzzleId, isSolved = false, timeSpentSeconds = 0 } = options || {};
+const savePuzzleAttempt = async options => {
+  const { isSolved = false, isFinished = false } = options || {};
 
-  if (!fen || !puzzleId) return;
+  if (!userState.isRatingUpdated) {
+    await updateUserRating(isSolved);
+  } else {
+    await showPuzzleRating(true);
+  }
 
-  chrome.storage.local.get("PUZZLE_ATTEMPTS", result => {
-    const attempts = result.PUZZLE_ATTEMPTS || [];
-    const existingAttempt = attempts.find(attempt => attempt.puzzleId === puzzleId || attempt.fen === fen);
-    const existingIndex = attempts.findIndex(attempt => attempt.puzzleId === puzzleId);
+  chrome.storage.local.get("puzzleAttempts", result => {
+    const attempts = result.puzzleAttempts || [];
+    const existingIndex = attempts.findIndex(attempt => attempt.puzzleId === puzzleState.id);
 
     const attempt = {
-      fen,
-      puzzleId,
+      fen: puzzleState.fen,
+      puzzleId: puzzleState.id,
+      timeSpentSeconds: (Date.now() - puzzleState.startTime) / 1000,
+      puzzleRating: puzzleState.rating,
+      puzzleRatingDeviation: puzzleState.ratingDeviation,
       isSolved,
       timestamp: new Date().toISOString(),
-      timeSpentSeconds,
-      isFinished: isSolved || false,
+      isFinished: isSolved || isFinished,
+      isUserRatingUpdated: userState.isRatingUpdated,
+      ratingChange: userState.ratingChange,
     };
 
     if (existingIndex === -1) {
-      // New attempt
       attempts.push(attempt);
-    } else if (isSolved && !existingAttempt.isFinished) {
-      existingAttempt.isFinished = true;
+    } else if ((isSolved || isFinished) && !attempts[existingIndex].isFinished) {
+      attempts[existingIndex] = { ...attempts[existingIndex], ...attempt };
     }
 
-    chrome.storage.local.set({ PUZZLE_ATTEMPTS: attempts });
+    chrome.storage.local.set({ puzzleAttempts: attempts });
   });
 };
 
@@ -124,12 +364,15 @@ const checkPuzzleSolved = async (fen, puzzleId) => {
   if (!fen || !puzzleId) return false;
 
   return new Promise(resolve => {
-    chrome.storage.local.get("PUZZLE_ATTEMPTS", result => {
-      const attempts = result.PUZZLE_ATTEMPTS || [];
-      const attempt = attempts.find(attempt => attempt.puzzleId === puzzleId || attempt.fen === fen);
-      resolve(attempt ? attempt.isFinished : false);
+    chrome.storage.local.get("puzzleAttempts", result => {
+      const attempts = result.puzzleAttempts || [];
+      resolve(attempts.find(attempt => attempt.puzzleId === puzzleId || attempt.fen === fen));
     });
   });
+};
+
+const checkIsLastMove = () => {
+  return puzzleState.currentMoveIndex === puzzleState.moves.length - 1;
 };
 
 const putMark = (square, correct = true, animate = true) => {
@@ -156,9 +399,9 @@ const toggleLockBoard = (lockBoard = null) => {
   const chessPieces = document.querySelectorAll(".piece-417db");
   if (!chessPieces) return;
 
-  gameState.isBoardLocked = lockBoard !== null ? lockBoard : !gameState.isBoardLocked;
+  boardState.isBoardLocked = lockBoard !== null ? lockBoard : !boardState.isBoardLocked;
   chessPieces.forEach(piece => {
-    piece.style.pointerEvents = gameState.isBoardLocked ? "none" : "auto";
+    piece.style.pointerEvents = boardState.isBoardLocked ? "none" : "auto";
   });
 };
 
@@ -175,24 +418,26 @@ const playSound = soundName => {
 };
 
 const updateBoardPosition = (fen, animate = true) => {
-  gameState.board.position(fen, animate ? { animate: true } : false);
+  boardState.board.position(fen, animate ? { animate: true } : false);
 };
 
 const updateStatus = text => {
   const status = document.getElementById("status");
-  if (status) status.textContent = text;
+  if (!status) return;
+
+  status.textContent = text;
 };
 
 const updateStatusText = () => {
-  if (gameState.isPuzzleMode) return;
+  if (puzzleState.isPuzzleMode) return;
 
   const moveColor = getMoveColor();
 
-  if (gameState.game.in_checkmate()) {
+  if (boardState.game.in_checkmate()) {
     updateStatus(`Game over, ${moveColor} is in checkmate.`);
-  } else if (gameState.game.in_draw()) {
+  } else if (boardState.game.in_draw()) {
     updateStatus("Game over, drawn position");
-  } else if (gameState.game.in_check()) {
+  } else if (boardState.game.in_check()) {
     updateStatus(`${moveColor} is in check.`);
   } else {
     updateStatus(`${moveColor} to move.`);
@@ -208,53 +453,51 @@ const loadPuzzlesFromCSV = async () => {
     .filter(line => line.trim());
 
   const puzzles = lines.map(line => {
-    const [id, fen, moves] = line.split(",");
-    return { id, fen, moves };
+    const [id, fen, moves, rating, ratingDeviation] = line.split(",");
+    return {
+      id,
+      fen,
+      moves,
+      rating: parseInt(rating) || null,
+      ratingDeviation: parseInt(ratingDeviation) || null,
+    };
   });
 
-  await chrome.storage.local.set({
-    PUZZLES: puzzles,
-    TOTAL_PUZZLES: puzzles.length,
-  });
+  await chrome.storage.local.set({ puzzles, totalPuzzles: puzzles.length });
 
-  return { PUZZLES: puzzles, TOTAL_PUZZLES: puzzles.length };
+  return { puzzles, totalPuzzles: puzzles.length };
 };
 
 const getDailyChess = async () => {
-  let result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
+  let result = await chrome.storage.local.get(["puzzles", "totalPuzzles"]);
 
-  if (!result.PUZZLES || !result.TOTAL_PUZZLES) {
+  if (!result.puzzles || !result.totalPuzzles) {
     for (let i = 0; i < 3; i++) {
       await new Promise(resolve => setTimeout(resolve, 500));
-      result = await chrome.storage.local.get(["PUZZLES", "TOTAL_PUZZLES"]);
-      if (result.PUZZLES && result.TOTAL_PUZZLES) break;
+      result = await chrome.storage.local.get(["puzzles", "totalPuzzles"]);
+      if (result.puzzles && result.totalPuzzles) break;
     }
 
-    if (!result.PUZZLES || !result.TOTAL_PUZZLES) {
+    if (!result.puzzles || !result.totalPuzzles) {
       result = await loadPuzzlesFromCSV();
     }
   }
 
   const today = new Date().setHours(0, 0, 0, 0);
   const daysSinceRelease = Math.floor((today - RELEASE_DATE) / (1000 * 60 * 60 * 24));
-  const puzzleIndex = daysSinceRelease % result.TOTAL_PUZZLES;
-  return result.PUZZLES[puzzleIndex];
+  const puzzleIndex = daysSinceRelease % result.totalPuzzles;
+  return result.puzzles[puzzleIndex];
 };
 
 const initiatePuzzle = () => {
-  if (!gameState.puzzleMoves || gameState.puzzleMoves.length === 0) return;
+  if (!puzzleState.moves || puzzleState.moves.length === 0) return;
 
-  gameState.currentMoveIndex = 0;
-  gameState.isPuzzleMode = true;
-  gameState.puzzleStartTime = Date.now();
-  gameState.hasIncorrectMoves = false;
+  const playerColor = boardState.game.turn() === "b" ? "White" : "Black";
   toggleLockBoard(true);
-
-  const playerColor = gameState.game.turn() === "b" ? "White" : "Black";
   updateStatus(`Your turn. Find the best move for ${playerColor}.`);
 
   setTimeout(() => {
-    makeOpponentMove(gameState.puzzleMoves[0]);
+    makeOpponentMove(puzzleState.moves[0]);
     toggleLockBoard(false);
   }, 700);
 };
@@ -265,51 +508,39 @@ const makeOpponentMove = moveString => {
   const from = moveString.slice(0, 2);
   const to = moveString.slice(2, 4);
   executeMove(from, to, true);
-  gameState.currentMoveIndex++;
+  puzzleState.currentMoveIndex++;
 };
 
 const validateUserMove = move => {
-  const expectedMove = gameState.puzzleMoves[gameState.currentMoveIndex];
+  const expectedMove = puzzleState.moves[puzzleState.currentMoveIndex];
   const userMoveString = move.from + move.to;
 
   if (userMoveString === expectedMove) {
     putMark(move.to, true);
-    gameState.currentMoveIndex++;
+    puzzleState.currentMoveIndex++;
 
-    if (gameState.currentMoveIndex >= gameState.puzzleMoves.length) {
+    if (puzzleState.currentMoveIndex >= puzzleState.moves.length) {
+      playConfettiEffect();
       playSound("Victory");
       updateStatus("Success! Puzzle completed.");
-      gameState.isPuzzleMode = false;
+      puzzleState.isPuzzleMode = false;
       toggleLockBoard(false);
       toggleZenModeManually(false);
-
-      if (!gameState.hasIncorrectMoves) {
-        savePuzzleAttempt({
-          fen: gameState.puzzleFen,
-          puzzleId: gameState.puzzleId,
-          isSolved: true,
-          timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
-        });
-      }
+      if (!puzzleState.hasIncorrectMoves) savePuzzleAttempt({ isSolved: true });
       return true;
     }
 
     updateStatus("Best move! Keep going...");
-    setTimeout(() => makeOpponentMove(gameState.puzzleMoves[gameState.currentMoveIndex]), 3500);
+    setTimeout(() => makeOpponentMove(puzzleState.moves[puzzleState.currentMoveIndex]), 500);
     return true;
   } else {
     playSound("Error");
     putMark(move.to, false);
     updateStatus("That's not the move! Try something else.");
 
-    if (!gameState.hasIncorrectMoves) {
-      gameState.hasIncorrectMoves = true;
-      savePuzzleAttempt({
-        fen: gameState.puzzleFen,
-        puzzleId: gameState.puzzleId,
-        isSolved: false,
-        timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
-      });
+    if (!puzzleState.hasIncorrectMoves) {
+      puzzleState.hasIncorrectMoves = true;
+      savePuzzleAttempt({ isSolved: false });
     }
     return false;
   }
@@ -320,8 +551,8 @@ const handleIncorrectMove = (move, originalHighlights) => {
   highlightLastMove(move.from, move.to);
 
   setTimeout(() => {
-    gameState.game.undo();
-    updateBoardPosition(gameState.game.fen());
+    boardState.game.undo();
+    updateBoardPosition(boardState.game.fen());
     removeMarks();
     removeHighlights();
     removeLastMoveHighlight();
@@ -334,7 +565,7 @@ const handleIncorrectMove = (move, originalHighlights) => {
 
 const executeMove = (from, to, animate = true) => {
   removeHighlights();
-  const move = gameState.game.move({ from, to, promotion: "q" });
+  const move = boardState.game.move({ from, to, promotion: "q" });
   if (!move) return null;
 
   move.captured ? playSound("Capture") : playSound("Move");
@@ -342,7 +573,7 @@ const executeMove = (from, to, animate = true) => {
   removeMarks();
 
   if (animate) {
-    updateBoardPosition(gameState.game.fen(), true);
+    updateBoardPosition(boardState.game.fen(), true);
   }
 
   handleCheckHighlights();
@@ -360,7 +591,7 @@ const makeMove = (from, to, options = {}) => {
   const move = executeMove(from, to, animate);
   if (!move) return "snapback";
 
-  if (gameState.isPuzzleMode && isUserMove) {
+  if (puzzleState.isPuzzleMode && isUserMove) {
     toggleLockBoard(true);
     const isCorrect = validateUserMove(move);
 
@@ -376,12 +607,12 @@ const makeMove = (from, to, options = {}) => {
 };
 
 const onDragStart = (square, piece) => {
-  if (gameState.game.game_over() || gameState.isBoardLocked) return false;
+  if (boardState.game.game_over() || boardState.isBoardLocked) return false;
 
   // Only pick up pieces for the side to move
   if (
-    (gameState.game.turn() === "w" && piece.search(/^b/) !== -1) ||
-    (gameState.game.turn() === "b" && piece.search(/^w/) !== -1)
+    (boardState.game.turn() === "w" && piece.search(/^b/) !== -1) ||
+    (boardState.game.turn() === "b" && piece.search(/^w/) !== -1)
   ) {
     return false;
   }
@@ -391,25 +622,25 @@ const onDragStart = (square, piece) => {
 };
 
 const highlightPossibleMoves = square => {
-  if (gameState.isBoardLocked || gameState.game.game_over()) return;
+  if (boardState.isBoardLocked || boardState.game.game_over()) return;
 
   removeHighlights();
 
-  const moves = gameState.game.moves({ square, verbose: true });
+  const moves = boardState.game.moves({ square, verbose: true });
   if (!moves.length) return;
 
   moves.forEach(move => highlightSquare(move.to));
 };
 
 const onDrop = (from, to) => {
-  if (gameState.game.game_over() || gameState.isBoardLocked) return "snapback";
+  if (boardState.game.game_over() || boardState.isBoardLocked) return "snapback";
 
   const result = makeMove(from, to, { isUserMove: true, animate: false });
   return result === "snapback" ? "snapback" : undefined;
 };
 
 const onSnapEnd = () => {
-  updateBoardPosition(gameState.game.fen(), false);
+  updateBoardPosition(boardState.game.fen(), false);
 };
 
 const getHighlightedSquares = () => {
@@ -432,7 +663,16 @@ const getMarksOnSquares = () => {
   return marks;
 };
 
-const createCompletionMessage = (dailyChess, mutationDetected) => {
+const formatPuzzleDuration = secs => {
+  if (!secs && secs !== 0) return "—";
+  const s = Math.max(0, Math.round(secs));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m === 0) return `${r}s`;
+  return `${m}m ${r.toString().padStart(2, "0")}s`;
+};
+
+const createCompletionMessage = async (dailyChess, mutationDetected, puzzleAttempt) => {
   const mainFeed = document.querySelector("main");
   if (!mainFeed) return;
 
@@ -442,14 +682,115 @@ const createCompletionMessage = (dailyChess, mutationDetected) => {
   const container = document.createElement("div");
   container.id = "chess-container";
   applyContainerStyles(container);
-  container.innerHTML = getCompletionMessageHTML();
+  container.classList.add("completion-container");
+
+  const difficulty = getPuzzleDifficulty(dailyChess.rating);
+  const userRating = Math.round(userState.rating?.getRating() || 1500);
+  const isSuccess = !!puzzleAttempt?.isSolved;
+  const timeSpent = formatPuzzleDuration(puzzleAttempt?.timeSpentSeconds);
+  const ratingDelta = puzzleAttempt?.ratingChange ? Math.round(puzzleAttempt.ratingChange) : null;
+  const userTier = getUserTier(userRating);
+
+  const statusIcon = isSuccess ? "🏆" : "🧩";
+  const statusTitle = isSuccess ? "Puzzle Cracked" : "Puzzle Failed";
+  const statusSubtitle = isSuccess
+    ? "Brilliant! You found the best moves."
+    : "Keep training—tomorrow brings a new challenge.";
+
+  const ratingDeltaHtml =
+    ratingDelta !== null
+      ? `<div class="delta-chip ${ratingDelta >= 0 ? "delta-up" : "delta-down"}">
+         ${ratingDelta >= 0 ? "📈 +" + ratingDelta : "📉 " + ratingDelta}
+       </div>`
+      : "";
+
+  const template = await loadTemplate("completion-message");
+  container.innerHTML = renderTemplate(template, {
+    statusClass: isSuccess ? "success" : "failed",
+    statusIcon,
+    statusTitle,
+    statusSubtitle,
+    userRating,
+    userTierColor: userTier.color,
+    userTierIcon: userTier.icon,
+    userTierName: userTier.name,
+    ratingDeltaHtml,
+    puzzleRating: dailyChess.rating || "—",
+    difficultyColor: difficulty.color,
+    difficultyLabel: difficulty.label,
+    timeSpent,
+  });
 
   mainFeed.appendChild(container);
 
-  document.getElementById("solveAgainBtn").addEventListener("click", async () => {
-    const settings = await getSettings();
-    setupPuzzle(dailyChess, settings, mutationDetected);
-  });
+  updateNextPuzzleCountdown();
+  const interval = setInterval(updateNextPuzzleCountdown, 1000);
+
+  function updateNextPuzzleCountdown() {
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setHours(24, 0, 0, 0);
+    const diff = Math.max(0, Math.floor((tomorrow - now) / 1000));
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+    const el = document.getElementById("nextInfo");
+    if (el) {
+      el.textContent = `New daily puzzle in ${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
+    }
+    if (diff === 0) clearInterval(interval);
+  }
+
+  const solveAgainBtn = container.querySelector("#solveAgainBtn");
+  if (solveAgainBtn) {
+    solveAgainBtn.addEventListener("click", async () => {
+      const settings = await getSettings();
+      await setupPuzzle(dailyChess, settings, mutationDetected, puzzleAttempt);
+    });
+  }
+};
+
+const playConfettiEffect = () => {
+  const boardEl = document.getElementById("board");
+  if (!boardEl) return;
+
+  if (getComputedStyle(boardEl).position === "static") {
+    boardEl.style.position = "relative";
+  }
+
+  let overlay = boardEl.querySelector("#confetti-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "confetti-overlay";
+    overlay.style.position = "absolute";
+    overlay.style.inset = "0";
+    overlay.style.pointerEvents = "none";
+    overlay.style.overflow = "visible";
+    overlay.style.zIndex = "10000";
+    boardEl.appendChild(overlay);
+  }
+
+  const COUNT = 42;
+  for (let i = 0; i < COUNT; i++) {
+    const piece = document.createElement("div");
+    piece.className = "board-confetti";
+    const hue = 180 + Math.floor(Math.random() * 160); // broader color range
+    const size = 6 + Math.random() * 6;
+    piece.style.width = `${size}px`;
+    piece.style.height = `${size * 1.4}px`;
+    piece.style.left = Math.random() * 100 + "%";
+    piece.style.top = "0%";
+    piece.style.background = `hsl(${hue} 80% 55%)`;
+    piece.style.opacity = (0.55 + Math.random() * 0.45).toString();
+    piece.style.animationDelay = (Math.random() * 0.4).toFixed(2) + "s";
+    piece.style.animationDuration = (2 + Math.random() * 1.6).toFixed(2) + "s";
+    piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+    overlay.appendChild(piece);
+  }
+
+  setTimeout(() => {
+    overlay?.remove();
+  }, 4000);
 };
 
 const applyContainerStyles = container => {
@@ -466,16 +807,7 @@ const applyContainerStyles = container => {
   `;
 };
 
-const getCompletionMessageHTML = () => `
-  <div style="font-size: 24px; margin-bottom: 20px;">
-    You've solved today's chess puzzle! 😊
-  </div>
-  <button id="solveAgainBtn" class="chess-btn chess-btn-primary" style="font-size: 16px; padding: 12px 24px;">
-    <span>🔄</span> Solve Again
-  </button>
-`;
-
-const createChessboard = fenCode => {
+const createChessboard = async fenCode => {
   const mainFeed = document.querySelector("main");
   if (!mainFeed) return;
 
@@ -488,6 +820,7 @@ const createChessboard = fenCode => {
   }
 
   const container = createBoardContainer();
+  if (DEBUG_MODE) await createDebugButtons(container);
   injectStyles();
   mainFeed.appendChild(container);
 
@@ -496,11 +829,46 @@ const createChessboard = fenCode => {
   attachEventListeners();
 };
 
+const createDebugButtons = async container => {
+  const template = await loadTemplate("debug-buttons");
+  const debugDiv = document.createElement("div");
+  debugDiv.innerHTML = template;
+
+  container.appendChild(debugDiv);
+
+  const logStateBtn = debugDiv.querySelector("#logStateBtn");
+  const resetAttemptsBtn = debugDiv.querySelector("#resetAttemptsBtn");
+  const removeDebugBtn = debugDiv.querySelector("#removeDebugBtn");
+
+  if (logStateBtn) {
+    logStateBtn.addEventListener("click", () => {
+      console.log("~ boardState: ", { ...boardState });
+      console.log("~ puzzleState: ", { ...puzzleState });
+      console.log("~ userState: ", { ...userState });
+    });
+  }
+
+  if (resetAttemptsBtn) {
+    resetAttemptsBtn.addEventListener("click", async () => {
+      await chrome.storage.local.remove("puzzleAttempts");
+      puzzleState.hasIncorrectMoves = false;
+      userState.isRatingUpdated = false;
+      console.log("~ Puzzle attempts deleted.");
+    });
+  }
+
+  if (removeDebugBtn) {
+    removeDebugBtn.addEventListener("click", async () => {
+      debugDiv.remove();
+    });
+  }
+};
+
 const removeExistingElements = () => {
   const existing = document.getElementById("chess-container");
   if (existing) existing.remove();
 
-  const existingScroll = document.querySelector(postClassName);
+  const existingScroll = document.querySelector(POST_CLASS_NAME);
   if (existingScroll) existingScroll.remove();
 };
 
@@ -515,6 +883,7 @@ const createBoardContainer = () => {
     border-radius: 8px;
     box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.15);
     margin: 20px auto;
+    margin-top: 0px;
     max-width: 500px;
   `;
 
@@ -541,138 +910,17 @@ const createBoardContainer = () => {
 };
 
 const injectStyles = () => {
+  if (document.getElementById("chess-dynamic-vars")) return;
   const style = document.createElement("style");
-  style.textContent = `
-    .piece-417db {
-      z-index: 9998 !important;
-      cursor: pointer;
-    }
-    .piece-417db.dragging-piece {
-      z-index: 9999 !important;
-    }
-    #board .square-55d63 {
-      cursor: default;
-    }
-    .chess-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 500;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      min-width: 100px;
-      justify-content: center;
-    }
-
-    .chess-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-
-    .chess-btn:active {
-      transform: translateY(0);
-    }
-
-    .chess-btn-primary {
-      background: #22ac38;
-      color: white;
-    }
-
-    .chess-btn-primary:hover {
-      background: #1e9632;
-    }
-
-    .chess-btn-secondary {
-      background: #6c757d;
-      color: white;
-    }
-
-    .chess-btn-secondary:hover {
-      background: #5a6268;
-    }
-
-    .chess-btn-accent {
-      background: #6f4ef2;
-      color: white;
-    }
-
-    .chess-btn-accent:hover {
-      background: #5d42d1;
-    }
-    .mark {
-      position: absolute;
-      top: 0%;
-      left: 90%;
-      transform: translate(-50%, -50%);
-      width: 25px;
-      height: 25px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 18px;
-      z-index: 10000;
-      animation: markPop 0.2s ease-out;
-    }
-    .mark.no-animation {
-      animation: none !important;
-    }
-    .mark.correct {
-      background: #22ac38;
-    }
-    .mark.incorrect {
-      background: red;
-    }
-    @keyframes markPop {
-      0% { transform: translate(-50%, -50%) scale(0); }
-      100% { transform: translate(-50%, -50%) scale(1); }
-    }
-    
-    .zen-toggle {
-      width: 40px;
-      height: 40px;
-      border: none;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-      margin-top: 15px;
-    }
-    
-    .zen-toggle:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: scale(1.1);
-    }
-    
-    .zen-controls {
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-    
-    .zen-controls.hidden {
-      opacity: 0;
-      transform: translateY(20px);
-      pointer-events: none;
-    }
-  `;
+  style.id = "chess-dynamic-vars";
+  style.textContent = `:root { --chess-green:#22c55e; --chess-red:#ef4444; }`;
   document.head.appendChild(style);
 };
 
 const initializeGame = fenCode => {
   const ChessConstructor = Chess || window.Chess;
-  gameState.game = new ChessConstructor();
-  gameState.game.load(fenCode);
+  boardState.game = new ChessConstructor();
+  boardState.game.load(fenCode);
 };
 
 const setupBoard = fenCode => {
@@ -680,7 +928,7 @@ const setupBoard = fenCode => {
 
   const config = {
     draggable: true,
-    position: gameState.game.fen(),
+    position: boardState.game.fen(),
     onDragStart,
     onDrop,
     snapbackSpeed: 0,
@@ -689,7 +937,7 @@ const setupBoard = fenCode => {
     pieceTheme: piece => chrome.runtime.getURL(`static/images/chessPieces/${piece}.png`),
   };
 
-  gameState.board = window.Chessboard("board", config);
+  boardState.board = window.Chessboard("board", config);
 };
 
 const attachEventListeners = () => {
@@ -699,41 +947,127 @@ const attachEventListeners = () => {
   document.getElementById("viewNextBtn").addEventListener("click", viewNextMove);
 };
 
-const viewNextMove = () => {
-  if (!gameState.isPuzzleMode || gameState.currentMoveIndex >= gameState.puzzleMoves.length) return;
+const showHelpWarningModal = async () => {
+  return new Promise(async resolve => {
+    const modal = document.createElement("div");
+    modal.id = "help-warning-modal";
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 10002;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 0.2s ease-out;
+    `;
 
-  const nextMove = gameState.puzzleMoves[gameState.currentMoveIndex];
-  if (nextMove) {
-    const from = nextMove.slice(0, 2);
-    const to = nextMove.slice(2, 4);
+    const template = await loadTemplate("help-warning-modal");
+    modal.innerHTML = template;
+    document.body.appendChild(modal);
 
-    makeMove(from, to, { isUserMove: true, animate: true });
+    const cancelBtn = modal.querySelector("#help-cancel");
+    const confirmBtn = modal.querySelector("#help-confirm");
 
-    gameState.hasIncorrectMoves = true;
-    savePuzzleAttempt({
-      fen: gameState.puzzleFen,
-      puzzleId: gameState.puzzleId,
-      isSolved: false,
-      timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
-    });
+    if (cancelBtn && confirmBtn) {
+      cancelBtn.onmouseenter = () => (cancelBtn.style.background = "#f5f5f5");
+      cancelBtn.onmouseleave = () => (cancelBtn.style.background = "white");
+      confirmBtn.onmouseenter = () => (confirmBtn.style.background = "#b91c1c");
+      confirmBtn.onmouseleave = () => (confirmBtn.style.background = "#dc2626");
+
+      cancelBtn.onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+
+      confirmBtn.onclick = async () => {
+        await chrome.storage.local.set({ helpWarningShown: true });
+        modal.remove();
+        resolve(true);
+      };
+    }
+
+    modal.onclick = e => {
+      if (e.target === modal) {
+        modal.remove();
+        resolve(false);
+      }
+    };
+  });
+};
+
+const addModalAnimations = () => {
+  if (!document.getElementById("modal-animations")) {
+    const style = document.createElement("style");
+    style.id = "modal-animations";
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideIn {
+        from { 
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to { 
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    `;
+    document.head.appendChild(style);
   }
 };
 
-const hintMove = () => {
-  if (!gameState.isPuzzleMode || gameState.currentMoveIndex >= gameState.puzzleMoves.length) return;
+const viewNextMove = async () => {
+  if (!puzzleState.isPuzzleMode || puzzleState.currentMoveIndex >= puzzleState.moves.length || boardState.isBoardLocked)
+    return;
 
-  const nextMove = gameState.puzzleMoves[gameState.currentMoveIndex];
+  const { helpWarningShown } = await chrome.storage.local.get("helpWarningShown");
+
+  if (!helpWarningShown && !userState.isRatingUpdated) {
+    addModalAnimations();
+    const proceed = await showHelpWarningModal();
+    if (!proceed) return;
+  }
+
+  const nextMove = puzzleState.moves[puzzleState.currentMoveIndex];
+  if (nextMove) {
+    const from = nextMove.slice(0, 2);
+    const to = nextMove.slice(2, 4);
+    const isLastMove = checkIsLastMove();
+
+    makeMove(from, to, { isUserMove: true, animate: true });
+
+    puzzleState.hasIncorrectMoves = true;
+    savePuzzleAttempt({ isSolved: false, isFinished: isLastMove });
+  }
+};
+
+const hintMove = async () => {
+  if (!puzzleState.isPuzzleMode || puzzleState.currentMoveIndex >= puzzleState.moves.length || boardState.isBoardLocked)
+    return;
+
+  const { helpWarningShown } = await chrome.storage.local.get("helpWarningShown");
+
+  if (!helpWarningShown && !userState.isRatingUpdated) {
+    addModalAnimations();
+    const proceed = await showHelpWarningModal();
+    if (!proceed) return;
+  }
+
+  const nextMove = puzzleState.moves[puzzleState.currentMoveIndex];
   if (nextMove) {
     const from = nextMove.slice(0, 2);
     highlightSquare(from, true);
 
-    gameState.hasIncorrectMoves = true;
-    savePuzzleAttempt({
-      fen: gameState.puzzleFen,
-      puzzleId: gameState.puzzleId,
-      isSolved: false,
-      timeSpentSeconds: (Date.now() - gameState.puzzleStartTime) / 1000,
-    });
+    puzzleState.hasIncorrectMoves = true;
+    savePuzzleAttempt({ isSolved: false });
   }
 };
 
@@ -741,7 +1075,7 @@ const flipBoard = () => {
   const highlightedSquares = getHighlightedSquares();
   const marks = getMarksOnSquares();
 
-  gameState.board.flip();
+  boardState.board.flip();
 
   if (highlightedSquares.length) {
     highlightLastMove(...highlightedSquares);
@@ -768,17 +1102,22 @@ const toggleZenControls = (eyeToggle, forceState = null) => {
 
   const buttonsDiv = document.getElementById("chess-buttons");
   const statusDiv = document.getElementById("status");
+  const ratingCards = document.getElementById("rating-cards");
 
   const currentlyVisible = !buttonsDiv?.classList.contains("hidden");
   const shouldShow = forceState !== null ? forceState : !currentlyVisible;
 
   eyeToggle.innerHTML = shouldShow ? "👀" : "🫥";
+  eyeToggle.title = shouldShow ? "Hide controls" : "Show controls";
 
   if (buttonsDiv) {
     buttonsDiv.classList.toggle("hidden", !shouldShow);
   }
   if (statusDiv) {
     statusDiv.classList.toggle("hidden", !shouldShow);
+  }
+  if (ratingCards) {
+    ratingCards.classList.toggle("hidden", !shouldShow);
   }
 
   return shouldShow;
@@ -787,7 +1126,9 @@ const toggleZenControls = (eyeToggle, forceState = null) => {
 const toggleZenMode = () => {
   const zenMode = document.getElementById("zenMode");
   const chessContainer = document.getElementById("chess-container");
-  const status = document.getElementById("status");
+  const statusDiv = document.getElementById("status");
+  const buttonsDiv = document.getElementById("chess-buttons");
+  const ratingCards = document.getElementById("rating-cards");
 
   if (zenMode) {
     const mainFeed = document.querySelector("main");
@@ -799,14 +1140,16 @@ const toggleZenMode = () => {
     if (eyeToggle) eyeToggle.remove();
 
     // Restore original text color and show controls
-    if (status) status.style.color = "";
+    if (statusDiv) statusDiv.style.color = "";
 
-    const buttonsDiv = document.getElementById("chess-buttons");
     if (buttonsDiv) {
       buttonsDiv.classList.remove("zen-controls", "hidden");
     }
-    if (status) {
-      status.classList.remove("zen-controls", "hidden");
+    if (statusDiv) {
+      statusDiv.classList.remove("zen-controls", "hidden");
+    }
+    if (ratingCards) {
+      ratingCards.classList.remove("zen-controls", "hidden");
     }
   } else {
     const zenContainer = document.createElement("div");
@@ -827,13 +1170,12 @@ const toggleZenMode = () => {
     const eyeToggle = document.createElement("button");
     eyeToggle.className = "zen-toggle";
     eyeToggle.innerHTML = "🫥";
-    eyeToggle.title = "Toggle controls visibility";
+    eyeToggle.title = "Show controls";
 
     eyeToggle.addEventListener("click", () => {
       toggleZenControls(eyeToggle);
     });
 
-    const statusDiv = chessContainer.querySelector("#status");
     if (statusDiv) {
       statusDiv.insertAdjacentElement("afterend", eyeToggle);
     }
@@ -843,13 +1185,13 @@ const toggleZenMode = () => {
     document.body.style.overflow = "hidden";
 
     // Force white text in zen mode and add zen-controls class
-    if (status) {
-      status.style.color = "white";
-      status.classList.add("zen-controls");
+    if (statusDiv) {
+      statusDiv.style.color = "white";
+      statusDiv.classList.add("zen-controls");
     }
 
-    const buttonsDiv = document.getElementById("chess-buttons");
     if (buttonsDiv) buttonsDiv.classList.add("zen-controls");
+    if (ratingCards) ratingCards.classList.add("zen-controls");
 
     toggleZenControls(eyeToggle, false);
 
@@ -864,8 +1206,13 @@ const toggleZenMode = () => {
 
 const applyGeneralSettings = settings => {
   if (settings?.hideLayoutAside) {
-    const layoutRef = document.querySelector(layoutAside);
+    const layoutRef = document.querySelector(LAYOUT_ASIDE);
     if (layoutRef) layoutRef.remove();
+  }
+
+  if (settings?.hideSidebar) {
+    const sidebarRef = document.querySelector(LAYOUT_SIDEBAR);
+    if (sidebarRef) sidebarRef.remove();
   }
 };
 
@@ -875,13 +1222,20 @@ const applyPuzzleSettings = (settings, mutationDetected = false) => {
   }
 };
 
-const setupPuzzle = (dailyChess, settings = {}, mutationDetected = false) => {
-  gameState.puzzleMoves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
-  gameState.puzzleId = dailyChess.id || null;
-  gameState.puzzleFen = dailyChess.fen || null;
-  gameState.isPuzzleMode = true;
+const setupPuzzle = async (dailyChess, settings = {}, mutationDetected = false, puzzleAttempt = null) => {
+  puzzleState.moves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
+  puzzleState.id = dailyChess.id || null;
+  puzzleState.fen = dailyChess.fen || null;
+  puzzleState.rating = dailyChess.rating || null;
+  puzzleState.ratingDeviation = dailyChess.ratingDeviation || null;
+  userState.isRatingUpdated = puzzleAttempt?.isUserRatingUpdated || false;
+  userState.ratingChange = puzzleAttempt?.ratingChange || null;
+  puzzleState.isPuzzleMode = true;
+  puzzleState.startTime = Date.now();
+  puzzleState.currentMoveIndex = 0;
+  puzzleState.hasIncorrectMoves = false;
 
-  createChessboard(dailyChess.fen);
+  await createChessboard(dailyChess.fen);
   initiatePuzzle();
   applyPuzzleSettings(settings, mutationDetected);
 };
@@ -894,19 +1248,20 @@ const getSettings = async () => {
 const main = async (mutationDetected = false) => {
   if (!checkSite()) return;
 
+  await initializeUserRating();
   const settings = await getSettings();
   applyGeneralSettings(settings);
   if (settings?.dailyPuzzlesDisabled) return;
 
   const dailyChess = await getDailyChess();
-  const isFinished = await checkPuzzleSolved(dailyChess.fen, dailyChess.id);
+  const puzzleAttempt = await checkPuzzleSolved(dailyChess.fen, dailyChess.id);
 
-  if (isFinished) {
-    createCompletionMessage(dailyChess, mutationDetected);
+  if (puzzleAttempt?.isFinished) {
+    createCompletionMessage(dailyChess, mutationDetected, puzzleAttempt);
     return;
   }
 
-  setupPuzzle(dailyChess, settings, mutationDetected);
+  await setupPuzzle(dailyChess, settings, mutationDetected, puzzleAttempt);
 };
 
 const observer = new MutationObserver(mutations => {
@@ -914,8 +1269,7 @@ const observer = new MutationObserver(mutations => {
 
   for (const mutation of mutations) {
     for (const node of mutation.addedNodes) {
-      if (node instanceof Element && node?.matches(postClassName)) {
-        console.log(`Detected mutation for ${node.tagName} with class ${node.className}`);
+      if (node instanceof Element && node?.matches(POST_CLASS_NAME)) {
         main(true);
       }
     }
