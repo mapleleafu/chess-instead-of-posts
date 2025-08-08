@@ -170,27 +170,6 @@ const updateRatingCards = async (hideRatingChange = false) => {
   });
 };
 
-const getUserTier = rating => {
-  if (rating < 800) return { icon: "🎯", color: "#94a3b8", name: "Beginner" };
-  if (rating < 1200) return { icon: "🥉", color: "#cd7f32", name: "Bronze" };
-  if (rating < 1600) return { icon: "🥈", color: "#c0c0c0", name: "Silver" };
-  if (rating < 2000) return { icon: "🥇", color: "#ffd700", name: "Gold" };
-  if (rating < 2400) return { icon: "💎", color: "#60a5fa", name: "Diamond" };
-  return { icon: "👑", color: "#a855f7", name: "Master" };
-};
-
-const getDifficultyIcon = difficulty => {
-  const icons = {
-    Beginner: "🌱",
-    Easy: "⚡",
-    Medium: "🔥",
-    Hard: "💪",
-    Expert: "🚀",
-    Master: "🏆",
-  };
-  return icons[difficulty] || "❓";
-};
-
 const showPuzzleRating = async (hideRatingChange = false) => {
   await updateRatingCards(hideRatingChange);
 };
@@ -405,16 +384,10 @@ const toggleLockBoard = (lockBoard = null) => {
   });
 };
 
-const playSound = soundName => {
-  chrome.storage.local.get("settings", result => {
-    const settings = result.settings || {};
-    const sound = sounds[soundName];
-
-    if (!sound || settings.soundsDisabled) return;
-
-    sound.volume = (settings.soundVolume || 100) / 100;
-    sound.play().catch(() => {});
-  });
+const playSound = async soundName => {
+  const result = await chrome.storage.local.get("settings");
+  const settings = result.settings || {};
+  await audioManager.playSound(soundName, settings);
 };
 
 const updateBoardPosition = (fen, animate = true) => {
