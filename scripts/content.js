@@ -142,8 +142,7 @@ const updateRatingCards = async (hideRatingChange = false) => {
   const userTier = getUserTier(userRating);
 
   const ratingDiff = puzzleState.rating ? puzzleState.rating - userRating : 0;
-  const difficultyClass =
-    ratingDiff > 200 ? "very-hard" : ratingDiff > 0 ? "harder" : ratingDiff > -200 ? "easier" : "very-easy";
+  const difficultyClass = ratingDiff > 200 ? "very-hard" : ratingDiff > 0 ? "harder" : ratingDiff > -200 ? "easier" : "very-easy";
 
   const ratingChangeHtml =
     userState.ratingChange && !hideRatingChange
@@ -382,6 +381,8 @@ const toggleLockBoard = (lockBoard = null) => {
   chessPieces.forEach(piece => {
     piece.style.pointerEvents = boardState.isBoardLocked ? "none" : "auto";
   });
+
+  updateButtonStates();
 };
 
 const playSound = async soundName => {
@@ -482,6 +483,8 @@ const makeOpponentMove = moveString => {
   const to = moveString.slice(2, 4);
   executeMove(from, to, true);
   puzzleState.currentMoveIndex++;
+
+  updateButtonStates();
 };
 
 const validateUserMove = move => {
@@ -491,6 +494,7 @@ const validateUserMove = move => {
   if (userMoveString === expectedMove) {
     putMark(move.to, true);
     puzzleState.currentMoveIndex++;
+    updateButtonStates();
 
     if (puzzleState.currentMoveIndex >= puzzleState.moves.length) {
       playConfettiEffect();
@@ -583,10 +587,7 @@ const onDragStart = (square, piece) => {
   if (boardState.game.game_over() || boardState.isBoardLocked) return false;
 
   // Only pick up pieces for the side to move
-  if (
-    (boardState.game.turn() === "w" && piece.search(/^b/) !== -1) ||
-    (boardState.game.turn() === "b" && piece.search(/^w/) !== -1)
-  ) {
+  if ((boardState.game.turn() === "w" && piece.search(/^b/) !== -1) || (boardState.game.turn() === "b" && piece.search(/^w/) !== -1)) {
     return false;
   }
 
@@ -666,9 +667,7 @@ const createCompletionMessage = async (dailyChess, mutationDetected, puzzleAttem
 
   const statusIcon = isSuccess ? "🏆" : "🧩";
   const statusTitle = isSuccess ? "Puzzle Cracked" : "Puzzle Failed";
-  const statusSubtitle = isSuccess
-    ? "Brilliant! You found the best moves."
-    : "Keep training—tomorrow brings a new challenge.";
+  const statusSubtitle = isSuccess ? "Brilliant! You found the best moves." : "Keep training—tomorrow brings a new challenge.";
 
   const ratingDeltaHtml =
     ratingDelta !== null
@@ -800,6 +799,7 @@ const createChessboard = async fenCode => {
   initializeGame(fenCode);
   setupBoard(fenCode);
   attachEventListeners();
+  updateButtonStates();
 };
 
 const createDebugButtons = async container => {
@@ -862,21 +862,28 @@ const createBoardContainer = () => {
 
   container.innerHTML = `
     <div id="board" style="width: 400px;"></div>
-      <div id="chess-buttons" style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
-        <button id="flipBtn" class="chess-btn chess-btn-secondary">
-          <span>↻</span> Flip Board
+      <div id="chess-buttons" style="
+        margin-top: 24px; 
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 12px; 
+        justify-content: center;
+        padding: 20px;
+      ">
+        <button id="flipBtn" class="chess-btn chess-btn-secondary" data-tooltip="Flip the board orientation">
+          <span>🔄</span> <span>Flip Board</span>
         </button>
-        <button id="hintBtn" class="chess-btn chess-btn-primary">
-          <span>💡</span> Hint
+        <button id="hintBtn" class="chess-btn chess-btn-primary" data-tooltip="Get a hint for the next move">
+          <span>💡</span> <span>Hint</span>
         </button>
-        <button id="viewNextBtn" class="chess-btn chess-btn-primary">
-          <span>👁</span> Next Move
+        <button id="viewNextBtn" class="chess-btn chess-btn-primary" data-tooltip="Show the next move in the solution">
+          <span>👁️</span> <span>Next Move</span>
         </button>
-        <button id="zenBtn" class="chess-btn chess-btn-accent">
-          <span>🧘</span> Zen Mode
+        <button id="zenBtn" class="chess-btn chess-btn-accent" data-tooltip="Enter distraction-free zen mode">
+          <span>🧘</span> <span>Zen Mode</span>
         </button>
       </div>
-    <div id="status" style="margin-top: 10px;"></div>
+    <div id="status" style="margin-top: 20px;"></div>
   `;
 
   return container;
@@ -914,10 +921,169 @@ const setupBoard = fenCode => {
 };
 
 const attachEventListeners = () => {
-  document.getElementById("flipBtn").addEventListener("click", flipBoard);
-  document.getElementById("zenBtn").addEventListener("click", toggleZenMode);
-  document.getElementById("hintBtn").addEventListener("click", hintMove);
-  document.getElementById("viewNextBtn").addEventListener("click", viewNextMove);
+  const addButtonFeedback = (buttonId, handler, options = {}) => {
+    const { feedbackType = "pulse", showLoading = false } = options;
+
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+
+    button.addEventListener("click", async e => {
+      if (button.classList.contains("loading") || button.classList.contains("disabled")) {
+        return;
+      }
+
+      if (showLoading) {
+        button.classList.add("loading");
+        const originalText = button.innerHTML;
+
+        button.classList.add(feedbackType);
+
+        if (navigator.vibrate) {
+          navigator.vibrate(10);
+        }
+
+        try {
+          await handler(e);
+        } catch (error) {
+          button.classList.remove("loading", feedbackType);
+          button.classList.add("error-shake");
+          setTimeout(() => button.classList.remove("error-shake"), 500);
+          throw error;
+        } finally {
+          button.classList.remove("loading", feedbackType);
+          button.innerHTML = originalText;
+        }
+      } else {
+        button.classList.add(feedbackType);
+
+        if (navigator.vibrate) {
+          navigator.vibrate(10);
+        }
+
+        try {
+          await handler(e);
+        } catch (error) {
+          button.classList.remove(feedbackType);
+          button.classList.add("error-shake");
+          setTimeout(() => button.classList.remove("error-shake"), 500);
+          throw error;
+        }
+
+        setTimeout(() => {
+          button.classList.remove(feedbackType);
+        }, 850);
+      }
+    });
+
+    button.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        button.click();
+      }
+    });
+
+    button.addEventListener("mousedown", e => {
+      e.preventDefault();
+    });
+  };
+
+  addButtonFeedback("flipBtn", flipBoard, {
+    feedbackType: "pulse",
+  });
+
+  addButtonFeedback("zenBtn", toggleZenMode, {
+    feedbackType: "pulse",
+  });
+
+  addButtonFeedback("hintBtn", hintMove, {
+    feedbackType: "success-glow",
+    showLoading: true,
+  });
+
+  addButtonFeedback("viewNextBtn", viewNextMove, {
+    feedbackType: "success-glow",
+    showLoading: true,
+  });
+};
+
+const updateButtonStates = () => {
+  const hintBtn = document.getElementById("hintBtn");
+  const viewNextBtn = document.getElementById("viewNextBtn");
+  const flipBtn = document.getElementById("flipBtn");
+  const zenBtn = document.getElementById("zenBtn");
+
+  if (!hintBtn || !viewNextBtn || !flipBtn || !zenBtn) return;
+
+  const canShowHint = puzzleState.isPuzzleMode && puzzleState.currentMoveIndex < puzzleState.moves.length && !boardState.isBoardLocked;
+  const canViewNext = puzzleState.isPuzzleMode && puzzleState.currentMoveIndex < puzzleState.moves.length && !boardState.isBoardLocked;
+
+  if (canShowHint) {
+    hintBtn.classList.remove("disabled");
+    hintBtn.setAttribute("data-tooltip", "Get a hint for the next move");
+  } else {
+    hintBtn.classList.add("disabled");
+    hintBtn.setAttribute("data-tooltip", boardState.isBoardLocked ? "Board is locked" : "No hints available for this position");
+  }
+
+  if (canViewNext) {
+    viewNextBtn.classList.remove("disabled");
+    viewNextBtn.setAttribute("data-tooltip", "Show the next move in the solution");
+  } else {
+    viewNextBtn.classList.add("disabled");
+    viewNextBtn.setAttribute("data-tooltip", boardState.isBoardLocked ? "Board is locked" : "No more moves available");
+  }
+
+  zenBtn.classList.remove("disabled");
+  zenBtn.setAttribute("data-tooltip", "Enter distraction-free zen mode");
+};
+
+const showButtonNotification = (buttonId, message, type = "success") => {
+  const button = document.getElementById(buttonId);
+  if (!button) return;
+
+  const existingNotification = button.querySelector(".btn-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  const notification = document.createElement("div");
+  notification.className = `btn-notification btn-notification-${type}`;
+  notification.textContent = message;
+
+  const successColor = "#16a34a";
+  const errorColor = "#dc2626";
+
+  notification.style.cssText = `
+    position: absolute;
+    top: -32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === "success" ? successColor : errorColor};
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 1001;
+    animation: notificationSlideIn 0.2s ease-out forwards;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  `;
+
+  button.style.position = "relative";
+  button.appendChild(notification);
+
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.style.animation = "notificationSlideOut 0.2s ease-in forwards";
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 200);
+    }
+  }, 2000);
 };
 
 const showHelpWarningModal = async () => {
@@ -998,8 +1164,7 @@ const addModalAnimations = () => {
 };
 
 const viewNextMove = async () => {
-  if (!puzzleState.isPuzzleMode || puzzleState.currentMoveIndex >= puzzleState.moves.length || boardState.isBoardLocked)
-    return;
+  if (!puzzleState.isPuzzleMode || puzzleState.currentMoveIndex >= puzzleState.moves.length || boardState.isBoardLocked) return;
 
   const { helpWarningShown } = await chrome.storage.local.get("helpWarningShown");
 
@@ -1023,8 +1188,7 @@ const viewNextMove = async () => {
 };
 
 const hintMove = async () => {
-  if (!puzzleState.isPuzzleMode || puzzleState.currentMoveIndex >= puzzleState.moves.length || boardState.isBoardLocked)
-    return;
+  if (!puzzleState.isPuzzleMode || puzzleState.currentMoveIndex >= puzzleState.moves.length || boardState.isBoardLocked) return;
 
   const { helpWarningShown } = await chrome.storage.local.get("helpWarningShown");
 
@@ -1081,7 +1245,7 @@ const toggleZenControls = (eyeToggle, forceState = null) => {
   const shouldShow = forceState !== null ? forceState : !currentlyVisible;
 
   eyeToggle.innerHTML = shouldShow ? "👀" : "🫥";
-  eyeToggle.title = shouldShow ? "Hide controls" : "Show controls";
+  eyeToggle.setAttribute("data-tooltip", shouldShow ? "Hide controls" : "Show controls");
 
   if (buttonsDiv) {
     buttonsDiv.classList.toggle("hidden", !shouldShow);
@@ -1143,7 +1307,7 @@ const toggleZenMode = () => {
     const eyeToggle = document.createElement("button");
     eyeToggle.className = "zen-toggle";
     eyeToggle.innerHTML = "🫥";
-    eyeToggle.title = "Show controls";
+    eyeToggle.setAttribute("data-tooltip", "Show controls");
 
     eyeToggle.addEventListener("click", () => {
       toggleZenControls(eyeToggle);

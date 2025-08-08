@@ -1,56 +1,301 @@
 #chess-container .chess-btn {
-  padding: 8px 16px;
+  position: relative;
+  padding: 12px 20px;
   border: none;
-  border-radius: 6px;
-  font-weight: 500;
+  border-radius: 8px;
+  font-weight: 600;
   font-size: 14px;
+  letter-spacing: 0.025em;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-width: 100px;
+  gap: 8px;
+  min-width: 120px;
   justify-content: center;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
+
+#chess-container .chess-btn span:first-child {
+  font-size: 16px;
+  position: relative;
+}
+
+#chess-container .chess-btn span:last-child {
+  position: relative;
+  font-weight: 600;
+}
+
 #chess-container .chess-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
 #chess-container .chess-btn:active {
   transform: translateY(0);
+  transition: all 0.1s ease;
 }
+
+#chess-container .chess-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
 #chess-container .chess-btn-primary {
-  background: #22ac38;
-  color: #fff;
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
 }
+
 #chess-container .chess-btn-primary:hover {
-  background: #1e9632;
+  background: #15803d;
+  box-shadow: 0 4px 8px rgba(22, 163, 74, 0.3);
 }
+
+#chess-container .chess-btn-primary:active {
+  background: #14532d;
+  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.3);
+}
+
 #chess-container .chess-btn-secondary {
-  background: #6c757d;
-  color: #fff;
+  background: #64748b;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(100, 116, 139, 0.2);
 }
+
 #chess-container .chess-btn-secondary:hover {
-  background: #5a6268;
+  background: #475569;
+  box-shadow: 0 4px 8px rgba(100, 116, 139, 0.3);
 }
+
+#chess-container .chess-btn-secondary:active {
+  background: #334155;
+  box-shadow: 0 1px 2px rgba(100, 116, 139, 0.3);
+}
+
 #chess-container .chess-btn-accent {
-  background: #6f4ef2;
-  color: #fff;
+  background: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.2);
 }
+
 #chess-container .chess-btn-accent:hover {
-  background: #5d42d1;
+  background: #6d28d9;
+  box-shadow: 0 4px 8px rgba(124, 58, 237, 0.3);
 }
+
+#chess-container .chess-btn-accent:active {
+  background: #5b21b6;
+  box-shadow: 0 1px 2px rgba(124, 58, 237, 0.3);
+}
+
+#chess-container .chess-btn.large-btn {
+  padding: 14px 24px;
+  font-size: 15px;
+  min-width: 140px;
+  border-radius: 10px;
+}
+
 #chess-container .chess-btn.pulse {
-  animation: btnPulse 0.85s ease-in-out;
+  animation: btnPulse 0.3s ease-out;
 }
+
+#chess-container .chess-btn.success-glow {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+#chess-container .chess-btn.error-shake {
+  animation: errorShake 0.4s ease-out;
+}
+
+#chess-container .chess-btn.loading {
+  pointer-events: none;
+  opacity: 0.7;
+  position: relative;
+}
+
+#chess-container .chess-btn.loading span {
+  opacity: 0.5;
+}
+
+#chess-container .chess-btn.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: btnSpinner 0.8s linear infinite;
+  z-index: 4;
+}
+
+#chess-container .chess-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+#chess-container .chess-btn.disabled:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 @keyframes btnPulse {
   0% {
-    transform: scale(0.95);
+    transform: scale(1);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.02);
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes errorShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes btnSpinner {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+#chess-container #chess-buttons {
+  position: relative;
+}
+
+#chess-container .chess-btn {
+  position: relative;
+}
+
+#chess-container .chess-btn:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 1000;
+  opacity: 0;
+  animation: tooltipFadeIn 0.2s ease-out 0.5s forwards;
+  pointer-events: none;
+}
+
+@keyframes tooltipFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes tooltipSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes notificationSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes notificationSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px) scale(0.8);
+  }
+}
+
+@media (max-width: 640px) {
+  #chess-container .chess-btn {
+    min-width: 110px;
+    padding: 10px 16px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  #chess-container .chess-btn span:first-child {
+    font-size: 15px;
+  }
+
+  #chess-container #chess-buttons {
+    margin-top: 20px;
+    padding: 16px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  #chess-container .chess-btn {
+    flex: 1 1 calc(50% - 5px);
+    min-width: auto;
+    max-width: none;
+  }
+
+  #chess-container #chess-buttons {
+    gap: 10px;
+    padding: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  #chess-container .chess-btn {
+    flex: 1 1 100%;
+    font-size: 12px;
+    padding: 8px 14px;
+    min-width: 100px;
+  }
+
+  #chess-container .chess-btn span:first-child {
+    font-size: 14px;
+  }
+
+  #chess-container #chess-buttons {
+    padding: 12px;
+    gap: 8px;
   }
 }
