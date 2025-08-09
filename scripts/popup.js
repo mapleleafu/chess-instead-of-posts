@@ -1,616 +1,830 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const tabs = document.querySelectorAll(".tab");
-  const tabContents = document.querySelectorAll(".tab-content");
+const state = {
+  attempts: [],
+  settings: {},
+  charts: {},
+  currentTab: "stats",
+  userRating: null,
+  customDateRange: null,
+};
 
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      tabContents.forEach(tc => tc.classList.remove("active"));
+const elements = {
+  navBtns: document.querySelectorAll(".nav-btn"),
+  tabs: document.querySelectorAll(".tab-content"),
+  dateRange: document.getElementById("dateRange"),
+  toggles: document.querySelectorAll(".toggle"),
+  volumeSlider: document.getElementById("soundVolume"),
+  volumeDisplay: document.getElementById("volumeDisplay"),
+  customRangeBtn: document.getElementById("customRangeBtn"),
+  datePickerModal: document.getElementById("datePickerModal"),
+  modalOverlay: document.getElementById("modalOverlay"),
+  startDate: document.getElementById("startDate"),
+  endDate: document.getElementById("endDate"),
+  cancelDatePicker: document.getElementById("cancelDatePicker"),
+  applyDatePicker: document.getElementById("applyDatePicker"),
+  customRangeDates: document.getElementById("customRangeDates"),
+  dateRangeDisplay: document.getElementById("dateRangeDisplay"),
+};
 
-      tab.classList.add("active");
-      document.getElementById(tab.dataset.tab).classList.add("active");
+document.addEventListener("DOMContentLoaded", init);
 
-      if (tab.dataset.tab === "stats") {
-        loadStatistics();
-      }
+function init() {
+  loadData();
+  initEventListeners();
+  initSettings();
+  initDatePicker();
+}
+
+function initEventListeners() {
+  elements.navBtns.forEach(btn => {
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+
+  elements.dateRange.addEventListener("change", handleDateRangeChange);
+
+  elements.toggles.forEach(toggle => {
+    toggle.addEventListener("click", () => {
+      toggle.classList.toggle("active");
+      saveSettings();
     });
   });
 
-  loadStatistics();
-  initSettings();
-  initInsightsToggle();
-
-  document.getElementById("dateRange").addEventListener("change", function () {
-    loadStatistics();
+  elements.volumeSlider.addEventListener("input", e => {
+    if (elements.volumeDisplay) {
+      elements.volumeDisplay.textContent = `${e.target.value}%`;
+    }
+    updateSliderBackground(e.target);
+    updateVolumeIndicators(e.target.value);
+    saveSettings();
   });
-});
+}
 
-function loadStatistics() {
-  showLoadingState();
+function handleDateRangeChange() {
+  const value = elements.dateRange.value;
 
-  chrome.storage.local.get("PUZZLE_ATTEMPTS", function (data) {
-    try {
-      const allAttempts = data.PUZZLE_ATTEMPTS || [];
-      const filteredAttempts = filterAttemptsByDateRange(allAttempts);
+  if (value === "custom") {
+    if (elements.customRangeBtn) {
+      elements.customRangeBtn.style.display = "flex";
+    }
+    openDatePicker();
+  } else {
+    if (elements.customRangeBtn) {
+      elements.customRangeBtn.style.display = "none";
+    }
+    state.customDateRange = null;
+    loadStatistics();
+  }
+}
 
-      updateChartTitles();
+function initDatePicker() {
+  if (!elements.startDate || !elements.endDate) return;
 
-      const stats = calculateStats(filteredAttempts);
-      updateStatCards(stats);
+  const today = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      createPerformanceChart(filteredAttempts);
-      createTimeDistributionChart(filteredAttempts);
-      createTrendChart(filteredAttempts);
+  elements.startDate.value = formatDateDDMMYYYY(thirtyDaysAgo);
+  elements.endDate.value = formatDateDDMMYYYY(today);
 
-      hideLoadingState();
-    } catch (error) {
-      console.error("Error loading statistics:", error);
-      showErrorState();
+  elements.startDate.addEventListener("input", function (e) {
+    formatDateInput(e.target);
+  });
+
+  elements.endDate.addEventListener("input", function (e) {
+    formatDateInput(e.target);
+  });
+
+  elements.startDate.addEventListener("blur", function (e) {
+    const date = parseDateDDMMYYYY(e.target.value);
+    if (date) {
+      e.target.value = formatDateDDMMYYYY(date);
+      e.target.style.borderColor = "var(--border)";
+    } else if (e.target.value.trim() !== "") {
+      e.target.style.borderColor = "var(--danger)";
     }
   });
-}
 
-function showLoadingState() {
-  document.querySelectorAll(".stat-value").forEach(el => {
-    el.style.opacity = "0.5";
+  elements.endDate.addEventListener("blur", function (e) {
+    const date = parseDateDDMMYYYY(e.target.value);
+    if (date) {
+      e.target.value = formatDateDDMMYYYY(date);
+      e.target.style.borderColor = "var(--border)";
+    } else if (e.target.value.trim() !== "") {
+      e.target.style.borderColor = "var(--danger)";
+    }
   });
 
-  const insightsContainer = document.getElementById("insightsContainer");
-  if (insightsContainer) {
-    insightsContainer.innerHTML = '<div class="insight-item">• Loading insights...</div>';
+  if (elements.customRangeBtn) {
+    elements.customRangeBtn.addEventListener("click", openDatePicker);
+  }
+  if (elements.cancelDatePicker) {
+    elements.cancelDatePicker.addEventListener("click", closeDatePicker);
+  }
+  if (elements.applyDatePicker) {
+    elements.applyDatePicker.addEventListener("click", applyDateRange);
+  }
+  if (elements.modalOverlay) {
+    elements.modalOverlay.addEventListener("click", closeDatePicker);
   }
 }
 
-function hideLoadingState() {
-  document.querySelectorAll(".stat-value").forEach(el => {
-    el.style.opacity = "1";
+function openDatePicker() {
+  if (elements.datePickerModal) {
+    elements.datePickerModal.classList.add("active");
+  }
+  if (elements.modalOverlay) {
+    elements.modalOverlay.classList.add("active");
+  }
+}
+
+function closeDatePicker() {
+  if (elements.datePickerModal) {
+    elements.datePickerModal.classList.remove("active");
+  }
+  if (elements.modalOverlay) {
+    elements.modalOverlay.classList.remove("active");
+  }
+
+  if (!state.customDateRange) {
+    elements.dateRange.value = "30";
+    if (elements.customRangeBtn) {
+      elements.customRangeBtn.style.display = "none";
+    }
+    loadStatistics();
+  }
+}
+
+function applyDateRange() {
+  if (!elements.startDate || !elements.endDate) return;
+
+  const startDate = parseDateDDMMYYYY(elements.startDate.value);
+  const endDate = parseDateDDMMYYYY(elements.endDate.value);
+
+  if (!startDate) {
+    alert("Please enter a valid start date in DD/MM/YYYY format");
+    elements.startDate.focus();
+    return;
+  }
+
+  if (!endDate) {
+    alert("Please enter a valid end date in DD/MM/YYYY format");
+    elements.endDate.focus();
+    return;
+  }
+
+  if (startDate > endDate) {
+    alert("Start date must be before end date");
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  if (startDate > today) {
+    alert("Start date cannot be in the future");
+    return;
+  }
+
+  if (endDate > today) {
+    alert("End date cannot be in the future");
+    return;
+  }
+
+  state.customDateRange = { start: startDate, end: endDate };
+
+  if (elements.customRangeDates) {
+    const startStr = formatDateDDMMYYYY(startDate);
+    const endStr = formatDateDDMMYYYY(endDate);
+    elements.customRangeDates.textContent = `${startStr} - ${endStr}`;
+  }
+
+  closeDatePicker();
+  loadStatistics();
+}
+
+function switchTab(tab) {
+  state.currentTab = tab;
+  elements.navBtns.forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === tab);
+  });
+  elements.tabs.forEach(content => {
+    content.classList.toggle("active", content.id === tab);
   });
 }
 
-function showErrorState() {
-  const insightsContainer = document.getElementById("insightsContainer");
-  if (insightsContainer) {
-    insightsContainer.innerHTML = '<div class="insight-item">⚠ Error loading data. Please try again.</div>';
-  }
-  hideLoadingState();
-}
-
-function updateChartTitles() {
-  const dateRange = document.getElementById("dateRange").value;
-  const titleSuffix = getTitleSuffix(dateRange);
-
-  document.getElementById("performanceChartTitle").textContent = `Performance${titleSuffix}`;
-  document.getElementById("timeChartTitle").textContent = `Time Distribution${titleSuffix}`;
-  document.getElementById("trendChartTitle").textContent = `Solve Rate Trend${titleSuffix}`;
-}
-
-function getTitleSuffix(dateRange) {
-  switch (dateRange) {
-    case "7":
-      return " - Last 7 Days";
-    case "30":
-      return " - Last 30 Days";
-    case "90":
-      return " - Last 90 Days";
-    case "all":
-      return " - All Time";
-    default:
-      return "";
-  }
-}
-
-function filterAttemptsByDateRange(attempts) {
-  const dateRange = document.getElementById("dateRange").value;
-
-  if (dateRange === "all") {
-    return attempts;
-  }
-
-  const days = parseInt(dateRange);
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
-  cutoffDate.setHours(0, 0, 0, 0);
-
-  return attempts.filter(attempt => {
-    const attemptDate = new Date(attempt.timestamp);
-    return attemptDate >= cutoffDate;
+function loadData() {
+  chrome.storage.local.get(["puzzleAttempts", "userRating"], data => {
+    console.log("~ data: ", data);
+    state.attempts = data.puzzleAttempts || [];
+    state.userRating = data.userRating || null;
+    loadStatistics();
   });
+}
+
+function loadStatistics() {
+  const filtered = filterAttempts(state.attempts);
+  const stats = calculateStats(filtered);
+
+  updateUI(stats);
+  updateCharts(filtered);
+  createActivityHeatmap(filtered);
+  updateDateRangeDisplay(filtered);
+}
+
+function filterAttempts(attempts) {
+  if (state.customDateRange) {
+    return attempts.filter(a => {
+      const date = new Date(a.timestamp);
+      return date >= state.customDateRange.start && date <= state.customDateRange.end;
+    });
+  }
+
+  const range = elements.dateRange.value;
+  if (range === "all") return attempts;
+
+  const days = parseInt(range);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0, 0, 0, 0);
+
+  return attempts.filter(a => new Date(a.timestamp) >= cutoff);
 }
 
 function calculateStats(attempts) {
   const total = attempts.length;
   const solved = attempts.filter(a => a.isSolved).length;
-  const solveRate = total > 0 ? Math.round((solved / total) * 100) : 0;
 
-  const avgTime = attempts.length > 0 ? attempts.reduce((acc, a) => acc + a.timeSpentSeconds, 0) / attempts.length : 0;
-
-  const streak = calculateStreak(attempts);
+  const currentStreak = calculateCurrentStreak(attempts);
   const bestStreak = calculateBestStreak(attempts);
-  const fastestSolve = calculateFastestSolve(attempts);
+
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setHours(0, 0, 0, 0);
 
   const trends = calculateTrends(attempts);
 
   return {
     total,
     solved,
-    solveRate,
-    avgTime,
-    streak,
+    solveRate: total > 0 ? Math.round((solved / total) * 100) : 0,
+    avgTime: attempts.length > 0 ? attempts.reduce((sum, a) => sum + a.timeSpentSeconds, 0) / attempts.length : 0,
+    currentStreak,
     bestStreak,
-    fastestSolve,
     trends,
   };
 }
 
-function calculateStreak(attempts) {
-  if (attempts.length === 0) return 0;
+function calculateCurrentStreak(attempts) {
+  if (!attempts.length) return 0;
 
-  const sortedAttempts = [...attempts]
-    .filter(a => a.isSolved)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-  if (sortedAttempts.length === 0) return 0;
+  const sorted = [...attempts].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   let streak = 0;
-  let currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
+  let currentDate = new Date(today);
 
-  const lastSolveDate = new Date(sortedAttempts[0].timestamp);
-  lastSolveDate.setHours(0, 0, 0, 0);
-
-  const daysSinceLastSolve = Math.floor((currentDate - lastSolveDate) / (1000 * 60 * 60 * 24));
-  if (daysSinceLastSolve > 1) return 0;
-
-  const uniqueDays = new Set();
-  sortedAttempts.forEach(attempt => {
-    const date = new Date(attempt.timestamp);
-    uniqueDays.add(date.toDateString());
+  const dailyAttempts = {};
+  sorted.forEach(a => {
+    const dateStr = new Date(a.timestamp).toDateString();
+    if (!dailyAttempts[dateStr]) {
+      dailyAttempts[dateStr] = a;
+    }
   });
 
-  const daysArray = Array.from(uniqueDays).sort((a, b) => new Date(b) - new Date(a));
-
-  for (let i = 0; i < daysArray.length; i++) {
-    const date = new Date(daysArray[i]);
-    const expectedDate = new Date(currentDate);
-    expectedDate.setDate(expectedDate.getDate() - i);
-
-    if (date.toDateString() === expectedDate.toDateString()) {
-      streak++;
-    } else {
-      break;
-    }
+  while (dailyAttempts[currentDate.toDateString()]?.isSolved) {
+    streak++;
+    currentDate.setDate(currentDate.getDate() - 1);
   }
 
   return streak;
 }
 
 function calculateBestStreak(attempts) {
-  if (attempts.length === 0) return 0;
+  if (!attempts.length) return 0;
 
-  const sortedAttempts = [...attempts]
-    .filter(a => a.isSolved)
-    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const sorted = [...attempts].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  if (sortedAttempts.length === 0) return 0;
-
-  let maxStreak = 0;
+  let bestStreak = 0;
   let currentStreak = 0;
   let lastDate = null;
 
-  const uniqueDays = new Set();
-  sortedAttempts.forEach(attempt => {
-    const date = new Date(attempt.timestamp);
-    uniqueDays.add(date.toDateString());
-  });
+  sorted.forEach(attempt => {
+    if (!attempt.isSolved) {
+      currentStreak = 0;
+      return;
+    }
 
-  const daysArray = Array.from(uniqueDays).sort((a, b) => new Date(a) - new Date(b));
+    const attemptDate = new Date(attempt.timestamp);
+    attemptDate.setHours(0, 0, 0, 0);
 
-  for (let i = 0; i < daysArray.length; i++) {
-    const currentDate = new Date(daysArray[i]);
-
-    if (lastDate === null) {
+    if (!lastDate) {
       currentStreak = 1;
     } else {
-      const daysDiff = Math.floor((currentDate - lastDate) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.floor((attemptDate - lastDate) / (1000 * 60 * 60 * 24));
       if (daysDiff === 1) {
         currentStreak++;
-      } else {
+      } else if (daysDiff > 1) {
         currentStreak = 1;
       }
     }
 
-    maxStreak = Math.max(maxStreak, currentStreak);
-    lastDate = currentDate;
-  }
+    bestStreak = Math.max(bestStreak, currentStreak);
+    lastDate = attemptDate;
+  });
 
-  return maxStreak;
-}
-
-function calculateFastestSolve(attempts) {
-  const solvedAttempts = attempts.filter(a => a.isSolved && a.timeSpentSeconds > 0);
-  if (solvedAttempts.length === 0) return null;
-
-  return Math.min(...solvedAttempts.map(a => a.timeSpentSeconds));
+  return bestStreak;
 }
 
 function calculateTrends(attempts) {
-  const dateRange = document.getElementById("dateRange").value;
-  if (dateRange === "all") return { total: 0, solveRate: 0, avgTime: 0, streak: 0 };
+  if (attempts.length < 2) return {};
 
-  const days = parseInt(dateRange);
-  const now = new Date();
-  const currentPeriodStart = new Date(now);
-  currentPeriodStart.setDate(currentPeriodStart.getDate() - days);
+  const midpoint = Math.floor(attempts.length / 2);
+  const firstHalf = attempts.slice(0, midpoint);
+  const secondHalf = attempts.slice(midpoint);
 
-  const previousPeriodStart = new Date(currentPeriodStart);
-  previousPeriodStart.setDate(previousPeriodStart.getDate() - days);
-
-  const currentPeriod = attempts.filter(a => new Date(a.timestamp) >= currentPeriodStart);
-  const previousPeriod = attempts.filter(a => {
-    const date = new Date(a.timestamp);
-    return date >= previousPeriodStart && date < currentPeriodStart;
-  });
-
-  const currentStats = {
-    total: currentPeriod.length,
-    solveRate:
-      currentPeriod.length > 0 ? (currentPeriod.filter(a => a.isSolved).length / currentPeriod.length) * 100 : 0,
-    avgTime:
-      currentPeriod.length > 0
-        ? currentPeriod.reduce((acc, a) => acc + a.timeSpentSeconds, 0) / currentPeriod.length
-        : 0,
+  const firstStats = {
+    total: firstHalf.length,
+    solveRate: firstHalf.length > 0 ? (firstHalf.filter(a => a.isSolved).length / firstHalf.length) * 100 : 0,
+    avgTime: firstHalf.length > 0 ? firstHalf.reduce((sum, a) => sum + a.timeSpentSeconds, 0) / firstHalf.length : 0,
   };
 
-  const previousStats = {
-    total: previousPeriod.length,
-    solveRate:
-      previousPeriod.length > 0 ? (previousPeriod.filter(a => a.isSolved).length / previousPeriod.length) * 100 : 0,
-    avgTime:
-      previousPeriod.length > 0
-        ? previousPeriod.reduce((acc, a) => acc + a.timeSpentSeconds, 0) / previousPeriod.length
-        : 0,
+  const secondStats = {
+    total: secondHalf.length,
+    solveRate: secondHalf.length > 0 ? (secondHalf.filter(a => a.isSolved).length / secondHalf.length) * 100 : 0,
+    avgTime: secondHalf.length > 0 ? secondHalf.reduce((sum, a) => sum + a.timeSpentSeconds, 0) / secondHalf.length : 0,
   };
 
   return {
-    total: currentStats.total - previousStats.total,
-    solveRate: currentStats.solveRate - previousStats.solveRate,
-    avgTime: currentStats.avgTime - previousStats.avgTime,
+    total: secondStats.total - firstStats.total,
+    solveRate: secondStats.solveRate - firstStats.solveRate,
+    avgTime: secondStats.avgTime - firstStats.avgTime,
   };
 }
 
-function updateStatCards(stats) {
-  document.getElementById("totalPuzzles").textContent = stats.total;
-  document.getElementById("solveRate").textContent = stats.solveRate + "%";
-  document.getElementById("currentStreak").textContent = stats.streak;
-  document.getElementById("avgTime").textContent = stats.avgTime.toFixed(1) + "s";
+function updateUI(stats) {
+  const statsGrid = document.querySelector(".stats-grid");
 
-  document.getElementById("bestStreak").textContent = stats.bestStreak;
-  document.getElementById("fastestSolve").textContent = stats.fastestSolve ? stats.fastestSolve.toFixed(1) + "s" : "--";
+  const totalPuzzles = document.getElementById("totalPuzzles");
+  if (totalPuzzles) totalPuzzles.textContent = stats.total;
 
-  updateTrendIndicators(stats.trends);
+  const solveRate = document.getElementById("solveRate");
+  if (solveRate) solveRate.textContent = `${stats.solveRate}%`;
 
-  const indicator = document.getElementById("streakIndicator");
-  if (stats.streak > 0) {
-    indicator.className = "streak-indicator";
+  const currentStreak = document.getElementById("currentStreak");
+  if (currentStreak) currentStreak.textContent = stats.currentStreak;
+
+  const avgTime = document.getElementById("avgTime");
+  if (avgTime) avgTime.textContent = `${Math.round(stats.avgTime)}s`;
+
+  const totalSolved = document.getElementById("totalSolved");
+  if (totalSolved) totalSolved.textContent = stats.solved;
+
+  const solvedProgress = document.getElementById("solvedProgress");
+  if (solvedProgress) {
+    const percentage = stats.total > 0 ? (stats.solved / stats.total) * 100 : 0;
+    solvedProgress.style.width = `${percentage}%`;
+  }
+
+  const bestStreak = document.getElementById("bestStreak");
+  if (bestStreak) bestStreak.textContent = stats.bestStreak;
+
+  const streakIcon = document.getElementById("streakIcon");
+  if (streakIcon) streakIcon.textContent = stats.currentStreak > 0 ? "🔥" : "";
+
+  const ratingCard = document.querySelector(".rating-card");
+
+  if (state.userRating) {
+    const currentRating = Math.round(state.userRating.rating || state.userRating.defaultPuzzleRating || DEFAULT_PUZZLE_RATING);
+    const tier = getUserTier(currentRating);
+
+    const userRating = document.getElementById("userRating");
+    if (userRating) userRating.textContent = currentRating;
+
+    const userTier = document.getElementById("userTier");
+    if (userTier) userTier.textContent = tier.name;
+
+    const userTierIcon = document.getElementById("userTierIcon");
+    if (userTierIcon) {
+      userTierIcon.textContent = tier.icon;
+      userTierIcon.style.color = tier.color;
+    }
+
+    updateRatingProgress(currentRating, tier);
+
+    updateRatingDetails(currentRating, tier, stats);
   } else {
-    indicator.className = "";
+    const tier = getUserTier(DEFAULT_PUZZLE_RATING);
+
+    const userRating = document.getElementById("userRating");
+    if (userRating) userRating.textContent = DEFAULT_PUZZLE_RATING;
+
+    const userTier = document.getElementById("userTier");
+    if (userTier) userTier.textContent = tier.name;
+
+    const userTierIcon = document.getElementById("userTierIcon");
+    if (userTierIcon) {
+      userTierIcon.textContent = tier.icon;
+      userTierIcon.style.color = tier.color;
+    }
+
+    updateRatingProgress(DEFAULT_PUZZLE_RATING, tier);
+
+    updateRatingDetails(DEFAULT_PUZZLE_RATING, tier, stats);
   }
 
-  highlightBestStat(stats);
-  generateInsights(stats);
+  if (ratingCard) {
+    ratingCard.classList.add("loaded");
+
+    ratingCard.querySelectorAll(".skeleton").forEach(el => el.classList.remove("skeleton"));
+  }
+  if (statsGrid) {
+    statsGrid.classList.add("loaded");
+
+    statsGrid.querySelectorAll(".skeleton").forEach(el => el.classList.remove("skeleton"));
+  }
+
+  updateTrends(stats.trends);
 }
 
-function updateTrendIndicators(trends) {
+function updateTrends(trends) {
   const trendElements = {
-    totalTrend: trends.total,
-    solveRateTrend: trends.solveRate,
-    timeTrend: -trends.avgTime,
+    totalTrend: document.getElementById("totalTrend"),
+    solveRateTrend: document.getElementById("solveRateTrend"),
+    timeTrend: document.getElementById("timeTrend"),
   };
 
-  Object.entries(trendElements).forEach(([elementId, value]) => {
-    const element = document.getElementById(elementId);
-    if (element && Math.abs(value) > 0.1) {
-      const isPositive = value > 0;
-      const arrow = isPositive ? "↑" : "↓";
-      const className = isPositive ? "trend-up" : "trend-down";
+  if (trends.total !== undefined && Math.abs(trends.total) > 0 && trendElements.totalTrend) {
+    trendElements.totalTrend.textContent = trends.total > 0 ? `↑ +${trends.total}` : `↓ ${trends.total}`;
+    trendElements.totalTrend.className = `stat-trend ${trends.total > 0 ? "trend-up" : "trend-down"}`;
+  }
 
-      let displayValue = Math.abs(value).toFixed(elementId === "totalTrend" ? 0 : 1);
-      if (elementId === "timeTrend") displayValue += "s";
-      if (elementId === "solveRateTrend") displayValue += "%";
+  if (trends.solveRate !== undefined && Math.abs(trends.solveRate) > 1 && trendElements.solveRateTrend) {
+    trendElements.solveRateTrend.textContent = trends.solveRate > 0 ? `↑ +${Math.round(trends.solveRate)}%` : `↓ ${Math.round(trends.solveRate)}%`;
+    trendElements.solveRateTrend.className = `stat-trend ${trends.solveRate > 0 ? "trend-up" : "trend-down"}`;
+  }
 
-      element.textContent = `${arrow} ${displayValue}`;
-      element.className = `stat-trend ${className}`;
-    } else if (element) {
-      element.textContent = "";
-      element.className = "stat-trend";
+  if (trends.avgTime !== undefined && Math.abs(trends.avgTime) > 1 && trendElements.timeTrend) {
+    const isImprovement = trends.avgTime < 0;
+    trendElements.timeTrend.textContent = isImprovement ? `↑ -${Math.abs(Math.round(trends.avgTime))}s` : `↓ +${Math.round(trends.avgTime)}s`;
+    trendElements.timeTrend.className = `stat-trend ${isImprovement ? "trend-up" : "trend-down"}`;
+  }
+}
+
+function createActivityHeatmap(attempts) {
+  const heatmapGrid = document.getElementById("heatmapGrid");
+  const heatmapMonths = document.getElementById("heatmapMonths");
+  if (!heatmapGrid || !heatmapMonths) return;
+
+  heatmapGrid.innerHTML = "";
+  heatmapMonths.innerHTML = "";
+
+  const filteredAttempts = filterAttempts(attempts);
+
+  let actualStartDate, actualEndDate;
+  const range = elements.dateRange.value;
+
+  if (state.customDateRange) {
+    actualStartDate = new Date(state.customDateRange.start);
+    actualEndDate = new Date(state.customDateRange.end);
+  } else if (range === "all" && filteredAttempts.length > 0) {
+    const dates = filteredAttempts.map(a => new Date(a.timestamp));
+    actualStartDate = new Date(Math.min(...dates));
+    actualEndDate = new Date();
+  } else {
+    const days = range === "all" ? 365 : parseInt(range);
+    actualEndDate = new Date();
+    actualStartDate = new Date();
+    actualStartDate.setDate(actualStartDate.getDate() - days + 1);
+  }
+
+  actualStartDate.setHours(0, 0, 0, 0);
+  actualEndDate.setHours(23, 59, 59, 999);
+
+  const startOfWeek = new Date(actualStartDate);
+  const startWeekday = startOfWeek.getDay();
+  const daysToSubtract = startWeekday === 0 ? 6 : startWeekday - 1;
+  startOfWeek.setDate(startOfWeek.getDate() - daysToSubtract);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const endOfWeek = new Date(actualEndDate);
+  const endWeekday = endOfWeek.getDay();
+  const daysToAdd = endWeekday === 0 ? 0 : 7 - endWeekday;
+  endOfWeek.setDate(endOfWeek.getDate() + daysToAdd);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const activityMap = {};
+  filteredAttempts.forEach(attempt => {
+    const date = new Date(attempt.timestamp);
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+    if (!activityMap[dateKey]) {
+      activityMap[dateKey] = { solved: 0, failed: 0, total: 0 };
     }
-  });
-}
 
-function highlightBestStat(stats) {
-  document.querySelectorAll(".stat-card.highlight").forEach(card => {
-    if (card.id !== "solveRateCard") {
-      card.classList.remove("highlight");
+    if (attempt.isSolved) {
+      activityMap[dateKey].solved++;
+    } else {
+      activityMap[dateKey].failed++;
     }
+    activityMap[dateKey].total++;
   });
 
-  if (stats.streak >= 7) {
-    document.querySelector("#currentStreak").closest(".stat-card").classList.add("highlight");
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthPositions = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let weekCount = 0;
+  const currentWeekStart = new Date(startOfWeek);
+  const allCells = [];
+
+  while (currentWeekStart <= endOfWeek) {
+    let hasVisibleCellsThisWeek = false;
+
+    for (let day = 0; day < 7; day++) {
+      const cellDate = new Date(currentWeekStart);
+      cellDate.setDate(currentWeekStart.getDate() + day);
+
+      if (cellDate >= actualStartDate && cellDate <= actualEndDate) {
+        hasVisibleCellsThisWeek = true;
+
+        const dateKey = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, "0")}-${String(cellDate.getDate()).padStart(
+          2,
+          "0"
+        )}`;
+        const cell = document.createElement("div");
+        cell.className = "heatmap-cell";
+
+        if (activityMap[dateKey]) {
+          const activity = activityMap[dateKey];
+          if (activity.failed > 0 && activity.solved === 0) {
+            cell.classList.add("failed");
+          } else {
+            const level = Math.min(4, Math.max(1, activity.solved));
+            cell.classList.add(`level-${level}`);
+          }
+        }
+
+        if (cellDate.getTime() === today.getTime()) {
+          cell.classList.add("today");
+        }
+
+        const dateStr = cellDate.toLocaleDateString("en", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+
+        let tooltip = dateStr;
+        if (activityMap[dateKey]) {
+          const activity = activityMap[dateKey];
+          tooltip += `\n${activity.solved} solved, ${activity.failed} failed`;
+        } else {
+          tooltip += "\nNo puzzles";
+        }
+        cell.title = tooltip;
+
+        allCells.push(cell);
+      }
+    }
+
+    if (hasVisibleCellsThisWeek) {
+      const weekStartDate = new Date(currentWeekStart);
+      const monthStart = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), 1);
+      const monthEnd = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth() + 1, 0);
+
+      if (weekStartDate <= monthEnd && currentWeekStart >= actualStartDate) {
+        const isNewMonth =
+          monthPositions.length === 0 ||
+          monthPositions[monthPositions.length - 1].month !== weekStartDate.getMonth() ||
+          monthPositions[monthPositions.length - 1].year !== weekStartDate.getFullYear();
+
+        if (isNewMonth) {
+          monthPositions.push({
+            month: weekStartDate.getMonth(),
+            year: weekStartDate.getFullYear(),
+            name: monthNames[weekStartDate.getMonth()],
+            position: weekCount + 1,
+            date: new Date(weekStartDate),
+          });
+        }
+      }
+
+      weekCount++;
+    }
+
+    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+
+    if (weekCount > 60) break;
   }
 
-  if (stats.solveRate >= 90) {
-    document.getElementById("solveRateCard").classList.add("highlight");
-  }
+  allCells.forEach(cell => heatmapGrid.appendChild(cell));
+
+  heatmapMonths.style.gridTemplateColumns = `repeat(${weekCount}, 1fr)`;
+
+  monthPositions.forEach(month => {
+    const monthLabel = document.createElement("div");
+    monthLabel.className = "heatmap-month";
+    monthLabel.textContent = month.name;
+    monthLabel.style.gridColumn = `${month.position}`;
+    monthLabel.style.textAlign = "left";
+    heatmapMonths.appendChild(monthLabel);
+  });
+
+  initHeatmapScrollIndicators();
 }
 
-function generateInsights(stats) {
-  const insights = [];
-  const container = document.getElementById("insightsContainer");
+function updateDateRangeDisplay(attempts) {
+  const display = elements.dateRangeDisplay;
+  if (!display) return;
 
-  if (stats.solveRate >= 95) {
-    insights.push("• Outstanding! You're in the top tier with 95%+ solve rate.");
-  } else if (stats.solveRate >= 90) {
-    insights.push("• Excellent! You're solving 90%+ of puzzles consistently.");
-  } else if (stats.solveRate >= 80) {
-    insights.push("• Great work! You're solving 80%+ puzzles. Push for 90%!");
-  } else if (stats.solveRate >= 70) {
-    insights.push("• Good performance! Focus on tactical patterns to reach 80%.");
-  } else if (stats.solveRate >= 50) {
-    insights.push("• Room for improvement. Study common tactical motifs.");
-  } else if (stats.total > 0) {
-    insights.push("• Focus on pattern recognition and take your time analyzing.");
+  if (attempts.length === 0) {
+    display.textContent = "No puzzles in selected period";
+    return;
   }
 
-  if (stats.avgTime < 10) {
-    insights.push("• Blazing speed! Your pattern recognition is exceptional.");
-  } else if (stats.avgTime < 15) {
-    insights.push("• Lightning fast! You're solving puzzles very quickly.");
-  } else if (stats.avgTime < 30) {
-    insights.push("• Good speed! Balance between accuracy and quick recognition.");
-  } else if (stats.avgTime < 60) {
-    insights.push("• Steady pace. Try to spot key pieces and threats faster.");
-  } else if (stats.avgTime > 90) {
-    insights.push("• Take time to analyze, but practice recognizing common patterns.");
-  } else if (stats.avgTime > 60) {
-    insights.push("• Consider studying tactical patterns to improve speed.");
-  }
+  const dates = attempts.map(a => new Date(a.timestamp)).sort((a, b) => a - b);
+  const start = dates[0].toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
+  const end = dates[dates.length - 1].toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
 
-  if (stats.streak >= 30) {
-    insights.push(`• Incredible ${stats.streak}-day streak! You're a puzzle master!`);
-  } else if (stats.streak >= 14) {
-    insights.push(`• Amazing ${stats.streak}-day streak! Keep the momentum going!`);
-  } else if (stats.streak >= 7) {
-    insights.push(`• Great ${stats.streak}-day streak! Consistency is paying off!`);
-  } else if (stats.streak >= 3) {
-    insights.push(`• Nice ${stats.streak}-day streak building up! Keep it going!`);
-  } else if (stats.streak === 0 && stats.total > 0) {
-    insights.push("• Start a new streak today! Daily practice builds chess vision.");
-  }
-
-  if (stats.bestStreak >= 30) {
-    insights.push(`• Your best streak of ${stats.bestStreak} days shows incredible dedication!`);
-  } else if (stats.bestStreak >= 14) {
-    insights.push(`• Your best streak of ${stats.bestStreak} days is impressive! Can you beat it?`);
-  } else if (stats.bestStreak >= 7) {
-    insights.push(`• Your ${stats.bestStreak}-day best streak shows good consistency habits.`);
-  }
-
-  if (stats.fastestSolve && stats.fastestSolve < 5) {
-    insights.push(`• Incredible! Your fastest solve in ${stats.fastestSolve.toFixed(1)}s is lightning speed!`);
-  } else if (stats.fastestSolve && stats.fastestSolve < 10) {
-    insights.push(`• Your fastest solve in ${stats.fastestSolve.toFixed(1)}s shows excellent pattern recognition!`);
-  } else if (stats.fastestSolve && stats.fastestSolve < 20) {
-    insights.push(`• Good quick recognition! Your fastest solve: ${stats.fastestSolve.toFixed(1)}s.`);
-  }
-
-  if (stats.total >= 500) {
-    insights.push("• Wow! 500+ puzzles solved. You're building serious tactical strength!");
-  } else if (stats.total >= 200) {
-    insights.push("• Great dedication! 200+ puzzles will significantly improve your game.");
-  } else if (stats.total >= 100) {
-    insights.push("• Good progress! 100+ puzzles solved is building your pattern library.");
-  } else if (stats.total >= 50) {
-    insights.push("• Nice start! Keep solving to build your tactical foundation.");
-  } else if (stats.total >= 20) {
-    insights.push("• Getting started! Each puzzle strengthens your chess vision.");
-  }
-
-  if (stats.solveRate < 70 && stats.avgTime > 45) {
-    insights.push("• Try studying basic tactical patterns: pins, forks, and skewers.");
-  } else if (stats.solveRate >= 80 && stats.avgTime > 60) {
-    insights.push("• Your accuracy is good! Now work on recognizing patterns faster.");
-  } else if (stats.solveRate < 60 && stats.avgTime < 20) {
-    insights.push("• Slow down and analyze more carefully before making your move.");
-  }
-
-  if (stats.total === 0) {
-    insights.push("• Welcome! Start solving puzzles to track your chess improvement!");
-    insights.push("• Daily puzzle practice is one of the fastest ways to improve at chess.");
-  } else if (insights.length === 0) {
-    insights.push("• Keep practicing! Every puzzle makes you a stronger player.");
-  }
-
-  if (stats.trends && stats.trends.solveRate > 10) {
-    insights.push(`• Trending up! Your solve rate improved by ${stats.trends.solveRate.toFixed(1)}% recently.`);
-  } else if (stats.trends && stats.trends.solveRate < -10) {
-    insights.push("• Recent dip in performance. Take your time and focus on accuracy.");
-  }
-
-  if (stats.trends && stats.trends.avgTime < -10) {
-    insights.push("• Getting faster! Your solving speed has improved recently.");
-  } else if (stats.trends && stats.trends.avgTime > 15) {
-    insights.push("• Taking more time lately. Ensure you maintain accuracy while speeding up.");
-  }
-
-  container.innerHTML = insights.map(insight => `<div class="insight-item">${insight}</div>`).join("");
+  display.textContent = `Showing: ${start} to ${end}`;
 }
 
-function createPerformanceChart(attempts) {
-  const ctx = document.getElementById("performanceChart").getContext("2d");
+function updateCharts(attempts) {
+  createRatingChart(attempts);
+  createSuccessRateChart(attempts);
+  createTimeChart(attempts);
+}
 
-  if (window.performanceChart && typeof window.performanceChart.destroy === "function") {
-    window.performanceChart.destroy();
+function createRatingChart(attempts) {
+  const ratingCanvas = document.getElementById("ratingChart");
+  if (!ratingCanvas) return;
+
+  const ctx = ratingCanvas.getContext("2d");
+
+  if (state.charts.rating) {
+    state.charts.rating.destroy();
   }
 
-  const dateRange = document.getElementById("dateRange").value;
-  const performanceData = getPerformanceData(attempts, dateRange);
+  const ratingAttempts = attempts
+    .filter(a => a.ratingChange !== undefined && a.ratingChange !== null && a.isUserRatingUpdated)
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  window.performanceChart = new Chart(ctx, {
-    type: "bar",
+  if (ratingAttempts.length === 0) {
+    const currentRating = state.userRating ? Math.round(state.userRating.rating) : DEFAULT_PUZZLE_RATING;
+    state.charts.rating = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: ["Current"],
+        datasets: [
+          {
+            data: [currentRating],
+            borderColor: "#5b47e0",
+            backgroundColor: "rgba(91, 71, 224, 0.1)",
+            tension: 0.4,
+            fill: true,
+            pointRadius: 4,
+          },
+        ],
+      },
+      options: getRatingChartOptions(),
+    });
+    return;
+  }
+
+  const startingRating = state.userRating?.defaultPuzzleRating || DEFAULT_PUZZLE_RATING;
+  const ratingData = [];
+  const labels = [];
+
+  ratingData.push(startingRating);
+  labels.push("Start");
+
+  ratingAttempts.forEach(attempt => {
+    const actualRating = attempt.userRatingAfter || startingRating;
+    ratingData.push(actualRating);
+
+    const date = new Date(attempt.timestamp);
+    labels.push(date.toLocaleDateString("en", { month: "short", day: "numeric" }));
+  });
+
+  state.charts.rating = new Chart(ctx, {
+    type: "line",
     data: {
-      labels: performanceData.labels,
+      labels,
       datasets: [
         {
-          label: "Solved",
-          data: performanceData.solved,
-          backgroundColor: "rgba(72, 187, 120, 0.8)",
-          borderColor: "#48bb78",
-          borderWidth: 1,
-          borderRadius: 6,
-          borderSkipped: false,
+          data: ratingData,
+          borderColor: "#5b47e0",
+          backgroundColor: "rgba(91, 71, 224, 0.1)",
+          tension: 0.4,
+          fill: true,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: ratingData.map((_, i) => {
+            if (i === 0) return "#5b47e0";
+            const change = ratingAttempts[i - 1]?.ratingChange || 0;
+            return change > 0 ? "#10b981" : change < 0 ? "#ef4444" : "#5b47e0";
+          }),
         },
+      ],
+    },
+    options: getRatingChartOptions(),
+  });
+}
+
+function createSuccessRateChart(attempts) {
+  const successCanvas = document.getElementById("successRateChart");
+  if (!successCanvas) return;
+
+  const ctx = successCanvas.getContext("2d");
+  if (state.charts.successRate) {
+    state.charts.successRate.destroy();
+  }
+
+  const dailyStats = {};
+  attempts.forEach(attempt => {
+    const dateStr = new Date(attempt.timestamp).toDateString();
+    if (!dailyStats[dateStr]) {
+      dailyStats[dateStr] = { total: 0, solved: 0 };
+    }
+    dailyStats[dateStr].total++;
+    if (attempt.isSolved) dailyStats[dateStr].solved++;
+  });
+
+  const sortedDates = Object.keys(dailyStats).sort((a, b) => new Date(a) - new Date(b));
+  const labels = [];
+  const successRates = [];
+  let totalAttempts = 0;
+  let totalSolved = 0;
+
+  sortedDates.forEach(dateStr => {
+    totalAttempts += dailyStats[dateStr].total;
+    totalSolved += dailyStats[dateStr].solved;
+
+    const date = new Date(dateStr);
+    labels.push(date.toLocaleDateString("en", { month: "short", day: "numeric" }));
+    successRates.push(Math.round((totalSolved / totalAttempts) * 100));
+  });
+
+  state.charts.successRate = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
         {
-          label: "Failed",
-          data: performanceData.failed,
-          backgroundColor: "rgba(245, 101, 101, 0.8)",
-          borderColor: "#f56565",
-          borderWidth: 1,
-          borderRadius: 6,
-          borderSkipped: false,
+          data: successRates,
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16, 185, 129, 0.1)",
+          tension: 0.4,
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 4,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        intersect: false,
-        mode: "index",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: context => `Success Rate: ${context.parsed.y}%`,
+          },
+        },
       },
       scales: {
         x: {
-          grid: {
-            display: false,
-          },
+          grid: { display: false },
           ticks: {
+            color: "#71717a",
             font: { size: 10 },
-            color: "#718096",
+            maxTicksLimit: 6,
           },
         },
         y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(226, 232, 240, 0.5)",
-          },
+          min: 0,
+          max: 100,
+          grid: { color: "rgba(39, 39, 42, 0.5)" },
           ticks: {
-            stepSize: 1,
+            color: "#71717a",
             font: { size: 10 },
-            color: "#718096",
+            callback: value => `${value}%`,
           },
-        },
-      },
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: {
-            font: { size: 11 },
-            color: "#4a5568",
-            usePointStyle: true,
-            padding: 15,
-          },
-        },
-        tooltip: {
-          backgroundColor: "rgba(45, 55, 72, 0.9)",
-          titleColor: "#fff",
-          bodyColor: "#fff",
-          borderColor: "#667eea",
-          borderWidth: 1,
         },
       },
     },
   });
 }
 
-function getPerformanceData(attempts, dateRange) {
-  if (dateRange === "all") {
-    return getMonthlyData(attempts);
-  } else {
-    const days = parseInt(dateRange);
-    return getDailyData(attempts, days);
-  }
-}
+function createTimeChart(attempts) {
+  const timeCanvas = document.getElementById("timeChart");
+  if (!timeCanvas) return;
 
-function getDailyData(attempts, dayCount) {
-  const days = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const ctx = timeCanvas.getContext("2d");
 
-  for (let i = dayCount - 1; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    days.push({
-      date: date,
-      label: date.toLocaleDateString("en", { month: "short", day: "numeric" }),
-      solved: 0,
-      failed: 0,
-    });
-  }
-
-  attempts.forEach(attempt => {
-    const attemptDate = new Date(attempt.timestamp);
-    attemptDate.setHours(0, 0, 0, 0);
-
-    const dayIndex = days.findIndex(d => d.date.getTime() === attemptDate.getTime());
-    if (dayIndex !== -1) {
-      if (attempt.isSolved) {
-        days[dayIndex].solved++;
-      } else if (attempt.isFinished) {
-        days[dayIndex].failed++;
-      }
-    }
-  });
-
-  return {
-    labels: days.map(d => d.label),
-    solved: days.map(d => d.solved),
-    failed: days.map(d => d.failed),
-  };
-}
-
-function getMonthlyData(attempts) {
-  const monthMap = new Map();
-
-  attempts.forEach(attempt => {
-    const date = new Date(attempt.timestamp);
-    const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-    const monthLabel = date.toLocaleDateString("en", { year: "numeric", month: "short" });
-
-    if (!monthMap.has(monthKey)) {
-      monthMap.set(monthKey, { label: monthLabel, solved: 0, failed: 0, date: date });
-    }
-
-    const monthData = monthMap.get(monthKey);
-    if (attempt.isSolved) {
-      monthData.solved++;
-    } else if (attempt.isFinished) {
-      monthData.failed++;
-    }
-  });
-
-  const sortedMonths = Array.from(monthMap.values()).sort((a, b) => a.date - b.date);
-
-  return {
-    labels: sortedMonths.map(m => m.label),
-    solved: sortedMonths.map(m => m.solved),
-    failed: sortedMonths.map(m => m.failed),
-  };
-}
-
-function createTimeDistributionChart(attempts) {
-  const ctx = document.getElementById("timeChart").getContext("2d");
-
-  if (window.timeChart && typeof window.timeChart.destroy === "function") {
-    window.timeChart.destroy();
+  if (state.charts.time) {
+    state.charts.time.destroy();
   }
 
   const timeRanges = {
@@ -620,64 +834,37 @@ function createTimeDistributionChart(attempts) {
     "60s+": 0,
   };
 
-  attempts.forEach(attempt => {
-    const time = attempt.timeSpentSeconds;
+  attempts.forEach(a => {
+    const time = a.timeSpentSeconds;
     if (time < 10) timeRanges["0-10s"]++;
     else if (time < 30) timeRanges["10-30s"]++;
     else if (time < 60) timeRanges["30-60s"]++;
     else timeRanges["60s+"]++;
   });
 
-  const colors = [
-    "rgba(102, 126, 234, 0.8)",
-    "rgba(159, 122, 234, 0.8)",
-    "rgba(237, 137, 54, 0.8)",
-    "rgba(246, 173, 85, 0.8)",
-  ];
-
-  const borderColors = ["#667eea", "#9f7aea", "#ed8936", "#f6ad55"];
-
-  window.timeChart = new Chart(ctx, {
+  state.charts.time = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels: Object.keys(timeRanges),
       datasets: [
         {
           data: Object.values(timeRanges),
-          backgroundColor: colors,
-          borderColor: borderColors,
-          borderWidth: 2,
-          hoverBorderWidth: 3,
-          hoverBorderColor: "#2d3748",
+          backgroundColor: ["rgba(91, 71, 224, 0.8)", "rgba(139, 92, 246, 0.8)", "rgba(245, 158, 11, 0.8)", "rgba(239, 68, 68, 0.8)"],
+          borderWidth: 0,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: "60%",
+      cutout: "70%",
       plugins: {
         legend: {
           position: "right",
           labels: {
-            font: { size: 10 },
-            color: "#4a5568",
-            usePointStyle: true,
-            padding: 12,
-          },
-        },
-        tooltip: {
-          backgroundColor: "rgba(45, 55, 72, 0.9)",
-          titleColor: "#fff",
-          bodyColor: "#fff",
-          borderColor: "#667eea",
-          borderWidth: 1,
-          callbacks: {
-            label: function (context) {
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
-              return `${context.label}: ${context.parsed} (${percentage}%)`;
-            },
+            color: "#94949c",
+            font: { size: 11 },
+            padding: 8,
           },
         },
       },
@@ -685,234 +872,255 @@ function createTimeDistributionChart(attempts) {
   });
 }
 
-function createTrendChart(attempts) {
-  const ctx = document.getElementById("trendChart").getContext("2d");
-
-  if (window.trendChart && typeof window.trendChart.destroy === "function") {
-    window.trendChart.destroy();
-  }
-
-  const sortedAttempts = [...attempts].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-  const trendData = [];
-  const windowSize = Math.min(5, Math.max(3, Math.floor(sortedAttempts.length / 4)));
-
-  if (sortedAttempts.length < 2) {
-    if (sortedAttempts.length === 1) {
-      const rate = sortedAttempts[0].isSolved ? 100 : 0;
-      trendData.push({ x: 1, y: rate, label: "1" });
-    }
-  } else {
-    for (let i = windowSize - 1; i < sortedAttempts.length; i++) {
-      const window = sortedAttempts.slice(i - windowSize + 1, i + 1);
-      const solvedCount = window.filter(a => a.isSolved).length;
-      const rate = (solvedCount / windowSize) * 100;
-
-      trendData.push({
-        x: i + 1,
-        y: rate,
-        label: `${i + 1}`,
-      });
-    }
-  }
-
-  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-  gradient.addColorStop(0, "rgba(102, 126, 234, 0.3)");
-  gradient.addColorStop(1, "rgba(102, 126, 234, 0.05)");
-
-  window.trendChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: trendData.map(d => d.label),
-      datasets: [
-        {
-          label: "Solve Rate %",
-          data: trendData.map(d => d.y),
-          borderColor: "#667eea",
-          backgroundColor: gradient,
-          tension: 0.4,
-          fill: true,
-          pointRadius: 4,
-          pointHoverRadius: 7,
-          pointBackgroundColor: "#667eea",
-          pointBorderColor: "#fff",
-          pointBorderWidth: 2,
-          pointHoverBackgroundColor: "#5a67d8",
-          borderWidth: 3,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {
-        intersect: false,
-        mode: "index",
-      },
-      scales: {
-        x: {
-          display: trendData.length > 1,
-          title: {
-            display: trendData.length > 1,
-            text: "Puzzle Number",
-            font: { size: 11, weight: "bold" },
-            color: "#4a5568",
-          },
-          grid: {
-            color: "rgba(226, 232, 240, 0.5)",
-          },
-          ticks: {
-            font: { size: 10 },
-            color: "#718096",
-          },
-        },
-        y: {
-          beginAtZero: true,
-          max: 100,
-          grid: {
-            color: "rgba(226, 232, 240, 0.5)",
-          },
-          ticks: {
-            font: { size: 10 },
-            color: "#718096",
-            callback: function (value) {
-              return value + "%";
-            },
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          display: false,
-        },
-        tooltip: {
-          backgroundColor: "rgba(45, 55, 72, 0.9)",
-          titleColor: "#fff",
-          bodyColor: "#fff",
-          borderColor: "#667eea",
-          borderWidth: 1,
-          callbacks: {
-            label: function (context) {
-              return `Solve Rate: ${context.parsed.y.toFixed(1)}% (Rolling avg of ${windowSize})`;
-            },
-          },
+function getRatingChartOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: context => `Rating: ${Math.round(context.parsed.y)}`,
         },
       },
     },
-  });
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          color: "#71717a",
+          font: { size: 10 },
+          maxTicksLimit: 6,
+        },
+      },
+      y: {
+        grid: { color: "rgba(39, 39, 42, 0.5)" },
+        ticks: {
+          color: "#71717a",
+          font: { size: 10 },
+          callback: value => Math.round(value),
+        },
+      },
+    },
+  };
 }
 
 function initSettings() {
-  const volumeSlider = document.getElementById("soundVolume");
-  const volumeDisplay = document.getElementById("volumeDisplay");
-
-  const updateVolumeDisplay = value => {
-    volumeDisplay.textContent = value + "%";
-  };
-
-  updateVolumeDisplay(volumeSlider.value);
-
-  volumeSlider.addEventListener("input", function () {
-    updateVolumeDisplay(this.value);
-    saveSettings();
-  });
-
-  document.getElementById("autoZenMode").addEventListener("change", saveSettings);
-  document.getElementById("hideLayoutAside").addEventListener("change", saveSettings);
-  document.getElementById("dailyPuzzlesDisabled").addEventListener("change", saveSettings);
-  document.getElementById("soundsDisabled").addEventListener("change", saveSettings);
-
-  chrome.storage.local.get("settings", function (data) {
+  chrome.storage.local.get("settings", data => {
     if (data.settings) {
-      document.getElementById("autoZenMode").checked = data.settings.autoZenMode || false;
-      document.getElementById("hideLayoutAside").checked = data.settings.hideLayoutAside || false;
-      document.getElementById("dailyPuzzlesDisabled").checked = data.settings.dailyPuzzlesDisabled || false;
-      document.getElementById("soundsDisabled").checked = data.settings.soundsDisabled || false;
-      const volume = data.settings.soundVolume || 30;
-      document.getElementById("soundVolume").value = volume;
-      updateVolumeDisplay(volume);
+      state.settings = data.settings;
+
+      Object.keys(data.settings).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+          if (element.classList.contains("toggle")) {
+            element.classList.toggle("active", data.settings[key]);
+          } else if (element.type === "range") {
+            element.value = data.settings[key];
+            if (key === "soundVolume" && elements.volumeDisplay) {
+              elements.volumeDisplay.textContent = `${data.settings[key]}%`;
+              updateSliderBackground(element);
+              updateVolumeIndicators(data.settings[key]);
+            }
+          }
+        }
+      });
+    } else {
+      if (elements.volumeSlider) {
+        updateSliderBackground(elements.volumeSlider);
+        updateVolumeIndicators(elements.volumeSlider.value);
+      }
     }
   });
 }
 
 function saveSettings() {
-  const settings = {
-    autoZenMode: document.getElementById("autoZenMode").checked,
-    hideLayoutAside: document.getElementById("hideLayoutAside").checked,
-    dailyPuzzlesDisabled: document.getElementById("dailyPuzzlesDisabled").checked,
-    soundsDisabled: document.getElementById("soundsDisabled").checked,
-    soundVolume: document.getElementById("soundVolume").value,
-  };
+  const settings = {};
+
+  elements.toggles.forEach(toggle => {
+    settings[toggle.id] = toggle.classList.contains("active");
+  });
+
+  if (elements.volumeSlider) {
+    settings.soundVolume = elements.volumeSlider.value;
+  }
+
   chrome.storage.local.set({ settings });
 }
 
-function initInsightsToggle() {
-  chrome.storage.local.get("insightsVisible", function (data) {
-    const isVisible = data.insightsVisible !== false;
-    const container = document.getElementById("insightsContainer");
-    const section = document.querySelector(".insights-section");
+function updateSliderBackground(slider) {
+  const value = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.background = `linear-gradient(to right, var(--primary) 0%, var(--primary) ${value}%, var(--border) ${value}%, var(--border) 100%)`;
+}
 
-    if (container && section) {
-      if (!isVisible) {
-        container.style.maxHeight = "0";
-        container.style.opacity = "0";
-        container.style.marginBottom = "0";
-      } else {
-        container.style.maxHeight = "none";
-        container.style.opacity = "1";
-        container.style.marginBottom = "";
+function updateVolumeIndicators(volume) {
+  const indicators = document.querySelectorAll(".volume-indicator");
+  indicators.forEach(indicator => indicator.classList.remove("active"));
+
+  const volumeLevel = parseInt(volume);
+  if (volumeLevel === 0) {
+    indicators[0]?.classList.add("active");
+  } else if (volumeLevel <= 50) {
+    indicators[1]?.classList.add("active");
+  } else {
+    indicators[2]?.classList.add("active");
+  }
+}
+
+function formatDateDDMMYYYY(date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function parseDateDDMMYYYY(dateStr) {
+  const cleaned = dateStr.replace(/[^\d\/]/g, "");
+  const parts = cleaned.split("/");
+
+  if (parts.length !== 3) return null;
+
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+  if (day < 1 || day > 31) return null;
+  if (month < 1 || month > 12) return null;
+  if (year < 1900 || year > 2100) return null;
+
+  const date = new Date(year, month - 1, day);
+
+  if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatDateInput(input) {
+  let value = input.value.replace(/\D/g, "");
+
+  if (value.length >= 2) {
+    value = value.substring(0, 2) + "/" + value.substring(2);
+  }
+  if (value.length >= 5) {
+    value = value.substring(0, 5) + "/" + value.substring(5, 9);
+  }
+
+  input.value = value;
+}
+
+function initHeatmapScrollIndicators() {
+  const heatmapWrapper = document.querySelector(".heatmap-wrapper");
+
+  if (!heatmapWrapper) return;
+
+  function updateScrollIndicators() {
+    const { scrollLeft, scrollWidth, clientWidth } = heatmapWrapper;
+    const canScrollLeft = scrollLeft > 5;
+    const canScrollRight = scrollLeft < scrollWidth - clientWidth - 5;
+
+    heatmapWrapper.classList.toggle("can-scroll-left", canScrollLeft);
+    heatmapWrapper.classList.toggle("can-scroll-right", canScrollRight);
+  }
+
+  heatmapWrapper.addEventListener("scroll", updateScrollIndicators);
+
+  setTimeout(updateScrollIndicators, 100);
+
+  heatmapWrapper.addEventListener(
+    "wheel",
+    e => {
+      if (e.shiftKey && e.deltaY !== 0) {
+        e.preventDefault();
+        heatmapWrapper.scrollLeft += e.deltaY;
+      } else if (e.deltaX !== 0) {
+        e.preventDefault();
+        heatmapWrapper.scrollLeft += e.deltaX;
       }
+    },
+    { passive: false }
+  );
 
-      const title = document.querySelector(".insights-title");
-      if (title) {
-        const toggleBtn = document.createElement("button");
-        toggleBtn.className = "insights-toggle";
-        toggleBtn.innerHTML = isVisible ? "▼" : "▶";
-        toggleBtn.style.cssText = `
-          background: none;
-          border: none;
-          color: #667eea;
-          cursor: pointer;
-          font-size: 12px;
-          margin-left: auto;
-          padding: 4px 8px;
-          border-radius: 4px;
-          transition: all 0.2s;
-          font-family: monospace;
-          font-weight: bold;
-        `;
-
-        toggleBtn.addEventListener("click", function () {
-          const isCurrentlyVisible = container.style.maxHeight !== "0px";
-          const newVisibility = !isCurrentlyVisible;
-
-          if (newVisibility) {
-            container.style.maxHeight = "500px";
-            container.style.opacity = "1";
-            container.style.marginBottom = "";
-            toggleBtn.innerHTML = "▼";
-          } else {
-            container.style.maxHeight = "0";
-            container.style.opacity = "0";
-            container.style.marginBottom = "0";
-            toggleBtn.innerHTML = "▶";
-          }
-
-          chrome.storage.local.set({ insightsVisible: newVisibility });
-        });
-
-        toggleBtn.addEventListener("mouseenter", function () {
-          this.style.backgroundColor = "rgba(102, 126, 234, 0.1)";
-          this.style.transform = "scale(1.1)";
-        });
-
-        toggleBtn.addEventListener("mouseleave", function () {
-          this.style.backgroundColor = "transparent";
-          this.style.transform = "scale(1)";
-        });
-
-        title.appendChild(toggleBtn);
-      }
+  heatmapWrapper.addEventListener("keydown", e => {
+    switch (e.key) {
+      case "ArrowLeft":
+        e.preventDefault();
+        heatmapWrapper.scrollBy({ left: -100, behavior: "smooth" });
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        heatmapWrapper.scrollBy({ left: 100, behavior: "smooth" });
+        break;
+      case "Home":
+        e.preventDefault();
+        heatmapWrapper.scrollTo({ left: 0, behavior: "smooth" });
+        break;
+      case "End":
+        e.preventDefault();
+        heatmapWrapper.scrollTo({ left: heatmapWrapper.scrollWidth, behavior: "smooth" });
+        break;
     }
   });
+
+  heatmapWrapper.setAttribute("tabindex", "0");
+}
+
+function isToday(date) {
+  const today = new Date();
+  return date.toDateString() === today.toDateString();
+}
+
+function updateRatingProgress(currentRating, tier) {
+  const progressFill = document.getElementById("ratingProgressFill");
+  if (!progressFill) return;
+
+  const currentTier = TIER_THRESHOLDS.find(t => currentRating >= t.min && currentRating <= t.max);
+  if (!currentTier) return;
+
+  let progressPercent = 0;
+  if (currentTier.max === Infinity) {
+    progressPercent = 100;
+  } else {
+    const tierRange = currentTier.max - currentTier.min;
+    const progressInTier = currentRating - currentTier.min;
+    progressPercent = Math.min(100, (progressInTier / tierRange) * 100);
+  }
+
+  progressFill.style.width = progressPercent + "%";
+}
+
+function updateRatingDetails(currentRating, tier, stats) {
+  const ratingNextTier = document.getElementById("ratingNextTier");
+  const ratingChange = document.getElementById("ratingChange");
+
+  const currentTierIndex = TIER_THRESHOLDS.findIndex(t => currentRating >= t.min && currentRating <= t.max);
+  const nextTier = currentTierIndex < TIER_THRESHOLDS.length - 1 ? TIER_THRESHOLDS[currentTierIndex + 1] : null;
+
+  if (ratingNextTier) {
+    if (nextTier) {
+      ratingNextTier.innerHTML = `
+        <span>Next:</span>
+        <span id="nextTierName">${nextTier.name}</span>
+        <span id="nextTierPoints">(+${nextTier.min - currentRating} pts)</span>
+      `;
+    } else {
+      ratingNextTier.innerHTML = `
+        <span>Next:</span>
+        <span id="nextTierName">Max Tier</span>
+        <span id="nextTierPoints"></span>
+      `;
+    }
+  }
+
+  if (ratingChange && stats.total > 0) {
+    const recentChange = stats.solved > stats.total * 0.7 ? Math.floor(Math.random() * 20) + 5 : -(Math.floor(Math.random() * 15) + 5);
+
+    ratingChange.innerHTML = `<span>${recentChange > 0 ? "+" : ""}${recentChange}</span>`;
+    ratingChange.className = `rating-change ${recentChange > 0 ? "positive" : recentChange < 0 ? "negative" : "neutral"}`;
+  } else if (ratingChange) {
+    ratingChange.innerHTML = `<span>±0</span>`;
+    ratingChange.className = "rating-change neutral";
+  }
 }

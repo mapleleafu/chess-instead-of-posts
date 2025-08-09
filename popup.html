@@ -1,7 +1,24 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
+      :root {
+        --primary: #5b47e0;
+        --primary-dark: #4936c9;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --bg: #0a0a0b;
+        --surface: #131316;
+        --surface-hover: #1a1a1f;
+        --border: #27272a;
+        --text: #fafafa;
+        --text-muted: #94949c;
+        --text-dim: #71717a;
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -9,51 +26,112 @@
       }
 
       body {
-        width: 400px;
-        max-height: 600px;
-        overflow-y: auto;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #f8f9fa;
-        padding: 0;
-        margin: 0;
-      }
-
-      #container {
-        background: white;
-        border-radius: 0;
-        margin: 0;
+        width: 420px;
+        height: 600px;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
         overflow: hidden;
-        min-height: 100vh;
+        position: relative;
       }
 
-      .tabs {
+      .container {
+        height: 100%;
         display: flex;
-        background: white;
-        border-bottom: 1px solid #e2e8f0;
+        flex-direction: column;
+        background: var(--bg);
       }
 
-      .tab {
-        flex: 1;
-        padding: 12px;
-        text-align: center;
-        cursor: pointer;
+      .header {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        backdrop-filter: blur(10px);
+        position: relative;
+        z-index: 10;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+
+      .logo-icon {
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-size: 14px;
-        font-weight: 500;
-        color: #718096;
+      }
+
+      .nav {
+        display: flex;
+        gap: 2px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 2px;
+        border-radius: 8px;
+      }
+
+      .nav-btn {
+        padding: 6px 12px;
         background: transparent;
         border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
         transition: all 0.2s;
+        position: relative;
       }
 
-      .tab.active {
-        color: #667eea;
-        border-bottom: 2px solid #667eea;
+      .nav-btn.active {
+        background: var(--primary);
+        color: white;
+      }
+
+      .nav-btn:hover:not(.active) {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+      }
+
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+      }
+
+      .content::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .content::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .content::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      .content::-webkit-scrollbar-thumb:hover {
+        background: #3f3f46;
       }
 
       .tab-content {
         display: none;
-        padding: 24px;
-        animation: fadeIn 0.3s ease-in-out;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
       }
 
       .tab-content.active {
@@ -71,47 +149,42 @@
         }
       }
 
-      .stat-value {
-        transition: all 0.3s ease;
-      }
-
-      .chart-container {
-        transition: all 0.2s ease;
-      }
-
-      .chart-container:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      }
-
-      /* Stats Styles */
-      .date-filter {
-        margin-bottom: 20px;
+      .filter-bar {
         display: flex;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background: var(--surface);
+        border-radius: 10px;
+        border: 1px solid var(--border);
       }
 
-      .date-filter label {
-        font-size: 14px;
+      .filter-label {
+        font-size: 13px;
         font-weight: 500;
-        color: #4a5568;
+        color: var(--text-muted);
       }
 
-      .date-filter select {
-        padding: 8px 12px;
-        border: 1px solid #e2e8f0;
+      .filter-select {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 12px;
         border-radius: 6px;
-        font-size: 14px;
-        background: white;
-        color: #4a5568;
+        font-size: 13px;
         cursor: pointer;
+        outline: none;
+        transition: all 0.2s;
       }
 
-      .date-filter select:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      .filter-select:hover {
+        border-color: var(--primary);
+      }
+
+      .filter-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(91, 71, 224, 0.1);
       }
 
       .stats-grid {
@@ -122,491 +195,1316 @@
       }
 
       .stat-card {
-        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-        padding: 16px 12px;
-        border-radius: 12px;
-        text-align: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
         position: relative;
-        border: 1px solid rgba(102, 126, 234, 0.1);
-        transition: all 0.2s ease;
+        overflow: hidden;
+        transition: all 0.2s;
       }
 
       .stat-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-        border-color: rgba(102, 126, 234, 0.2);
+        border-color: rgba(91, 71, 224, 0.3);
+        box-shadow: 0 4px 20px rgba(91, 71, 224, 0.15);
       }
 
-      .stat-card.highlight {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-        border-color: #667eea;
+      .stat-card.primary {
+        background: linear-gradient(135deg, rgba(91, 71, 224, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+        border-color: rgba(91, 71, 224, 0.3);
       }
 
       .stat-value {
         font-size: 28px;
-        font-weight: 800;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-weight: 700;
         margin-bottom: 4px;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+      }
+
+      .stat-value-dual {
+        margin-bottom: 4px;
+        display: flex;
+        align-items: baseline;
+        justify-content: start;
+      }
+
+      .stat-main {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        font-weight: 700;
+      }
+
+      .stat-main #totalSolved {
+        font-size: 28px;
+        color: var(--success);
+      }
+
+      .stat-separator {
+        font-size: 20px;
+        color: var(--text-dim);
+        font-weight: 400;
+      }
+
+      .stat-main .stat-total {
+        font-size: 20px;
+        color: var(--text-muted);
+        font-weight: 600;
       }
 
       .stat-label {
         font-size: 11px;
-        color: #718096;
         text-transform: uppercase;
-        margin-top: 4px;
         letter-spacing: 0.5px;
+        color: var(--text-muted);
         font-weight: 600;
       }
 
-      .stat-trend {
+      .stat-sublabel {
         font-size: 10px;
+        color: var(--text-dim);
         margin-top: 4px;
         font-weight: 500;
-      }
-
-      .trend-up {
-        color: #48bb78;
-      }
-
-      .trend-down {
-        color: #f56565;
-      }
-
-      .trend-neutral {
-        color: #718096;
-      }
-
-      .chart-container {
-        margin-bottom: 20px;
-        background: white;
-        padding: 16px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-      }
-
-      .insights-section {
-        background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        border: 1px solid rgba(102, 126, 234, 0.1);
-      }
-
-      .insights-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #2d3748;
-        margin-bottom: 12px;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
       }
 
-      #insightsContainer {
-        transition: max-height 0.3s ease, opacity 0.3s ease, margin-bottom 0.3s ease;
+      .stat-sublabel span {
+        color: var(--primary);
+        font-weight: 600;
+        background: rgba(91, 71, 224, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+      }
+
+      .stat-progress-bar {
+        width: 100%;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        margin: 8px 0 4px 0;
         overflow: hidden;
       }
 
-      .insight-item {
-        background: white;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-size: 13px;
-        color: #4a5568;
-        border-left: 4px solid #667eea;
+      .stat-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--success) 0%, #059669 100%);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+        width: 0%;
       }
 
-      .insight-item:last-child {
-        margin-bottom: 0;
+      .stat-trend {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 2px;
       }
 
-      .insight-icon {
-        width: 16px;
-        height: 16px;
-        display: inline-block;
+      .trend-up {
+        color: var(--success);
+      }
+      .trend-down {
+        color: var(--danger);
+      }
+
+      .streak-fire {
+        color: var(--warning);
+        animation: flicker 2s infinite;
+      }
+
+      @keyframes flicker {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      .chart-container {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
       }
 
       .chart-title {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
-        color: #4a5568;
-        margin-bottom: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        color: var(--text);
+      }
+
+      .chart-subtitle {
+        font-size: 11px;
+        color: var(--text-dim);
       }
 
       canvas {
-        max-height: 150px;
+        max-height: 180px;
       }
 
-      /* Settings Styles */
-      h1 {
-        font-size: 18px;
-        font-weight: 600;
-        color: #2d3748;
+      .quick-stats {
+        display: flex;
+        gap: 8px;
         margin-bottom: 20px;
-        padding-bottom: 12px;
-        border-bottom: 2px solid #e2e8f0;
+      }
+
+      .quick-stat {
+        flex: 1;
+        padding: 12px;
+        background: linear-gradient(135deg, var(--surface) 0%, rgba(91, 71, 224, 0.05) 100%);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .quick-stat-value {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary);
+      }
+
+      .quick-stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-top: 4px;
+      }
+
+      .rating-section {
+        margin-bottom: 20px;
+      }
+
+      .rating-card {
+        background: linear-gradient(135deg, var(--surface) 0%, rgba(91, 71, 224, 0.05) 100%);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .rating-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary) 0%, #8b5cf6 100%);
+      }
+
+      .rating-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(91, 71, 224, 0.4);
+        box-shadow: 0 8px 32px rgba(91, 71, 224, 0.2);
+      }
+
+      .rating-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .rating-icon {
+        font-size: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(91, 71, 224, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+        border: 2px solid rgba(91, 71, 224, 0.2);
+        transition: all 0.2s ease;
+      }
+
+      .rating-card:hover .rating-icon {
+        transform: scale(1.05);
+        border-color: rgba(91, 71, 224, 0.4);
+        box-shadow: 0 4px 16px rgba(91, 71, 224, 0.3);
+      }
+
+      .rating-info {
+        flex: 1;
+      }
+
+      .rating-value {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--text);
+        line-height: 1;
+        margin-bottom: 4px;
+        background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .rating-tier {
+        font-size: 14px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .rating-progress {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 12px;
+      }
+
+      .rating-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary) 0%, #8b5cf6 100%);
+        border-radius: 3px;
+        transition: width 0.8s ease;
+        position: relative;
+      }
+
+      .rating-progress-fill::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+        animation: shimmer 2s infinite;
+      }
+
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(100%);
+        }
+      }
+
+      .rating-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .rating-next-tier {
+        font-size: 11px;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .rating-change {
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .rating-change.positive {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+      }
+
+      .rating-change.negative {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--danger);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+      }
+
+      .rating-change.neutral {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-muted);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .skeleton {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0.08) 25%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.08) 75%);
+        background-size: 200% 100%;
+        animation: shimmerSkeleton 1.5s infinite;
+        border-radius: 6px;
+      }
+
+      @keyframes shimmerSkeleton {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      .skeleton.rating-value {
+        width: 80px;
+        height: 32px;
+        background-clip: initial !important;
+        -webkit-background-clip: initial !important;
+        -webkit-text-fill-color: initial !important;
+        color: transparent !important;
+      }
+
+      .skeleton.rating-tier {
+        width: 60px;
+        height: 14px;
+        color: transparent !important;
+      }
+
+      .skeleton.rating-icon {
+        color: transparent !important;
+        background: linear-gradient(90deg, rgba(91, 71, 224, 0.1) 25%, rgba(91, 71, 224, 0.2) 50%, rgba(91, 71, 224, 0.1) 75%);
+        background-size: 200% 100%;
+        animation: shimmerSkeleton 1.5s infinite;
+        border: 2px solid rgba(91, 71, 224, 0.15);
+      }
+
+      .skeleton.rating-progress-fill {
+        width: 40%;
+        opacity: 0.5;
+      }
+
+      .skeleton.rating-next-tier {
+        color: transparent !important;
+        width: 120px;
+        height: 11px;
+      }
+
+      .skeleton.rating-change {
+        color: transparent !important;
+        width: 30px;
+        height: 20px;
+      }
+
+      .rating-card.loaded .skeleton {
+        animation: none;
+        background: initial;
+        color: initial !important;
+      }
+
+      .rating-card.loaded .skeleton.rating-value {
+        background: linear-gradient(135deg, var(--text) 0%, var(--primary) 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .rating-card.loaded .skeleton.rating-tier {
+        color: var(--text-muted) !important;
+      }
+
+      .rating-card.loaded .skeleton.rating-icon {
+        background: linear-gradient(135deg, rgba(91, 71, 224, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+        border: 2px solid rgba(91, 71, 224, 0.2);
+      }
+
+      .rating-card.loaded .skeleton.rating-progress-fill {
+        opacity: 1;
+      }
+
+      .rating-card.loaded .skeleton.rating-next-tier {
+        color: var(--text-dim) !important;
+      }
+
+      .rating-card.loaded .skeleton.rating-change.positive {
+        color: var(--success) !important;
+      }
+
+      .rating-card.loaded .skeleton.rating-change.negative {
+        color: var(--danger) !important;
+      }
+
+      .rating-card.loaded .skeleton.rating-change.neutral {
+        color: var(--text-muted) !important;
+      }
+
+      .skeleton.stat-value,
+      .skeleton#solveRate,
+      .skeleton#avgTime {
+        width: 60px;
+        height: 28px;
+        display: inline-block;
+        color: transparent !important;
+      }
+
+      .skeleton#currentStreak,
+      .skeleton#bestStreak,
+      .skeleton#totalSolved,
+      .skeleton#totalPuzzles {
+        width: 40px;
+        height: 28px;
+        display: inline-block;
+        color: transparent !important;
+      }
+
+      .skeleton.stat-trend {
+        width: 30px;
+        height: 15px;
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        color: transparent !important;
+      }
+
+      .skeleton.stat-progress-fill {
+        width: 30%;
+        opacity: 0.5;
+      }
+
+      .skeleton#streakIcon {
+        width: 20px;
+        height: 28px;
+        display: inline-block;
+        opacity: 0.5;
+      }
+
+      .stats-grid.loaded .skeleton {
+        animation: none;
+        background: initial;
+        color: initial !important;
+        opacity: 1;
+      }
+
+      .stats-grid.loaded .skeleton.stat-progress-fill {
+        opacity: 1;
+      }
+
+      .settings-section {
+        margin-bottom: 24px;
+      }
+
+      .settings-title {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
       }
 
       .setting-item {
-        margin-bottom: 16px;
-        padding: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        transition: background 0.2s;
+        padding: 14px 16px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s;
       }
 
       .setting-item:hover {
-        background: #f7fafc;
+        background: var(--surface-hover);
+        border-color: rgba(91, 71, 224, 0.3);
       }
 
-      .checkbox-wrapper {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
+      .setting-label {
+        font-size: 13px;
+        font-weight: 500;
       }
 
-      input[type="checkbox"] {
-        appearance: none;
-        width: 44px;
-        height: 24px;
-        background: #cbd5e0;
-        border-radius: 12px;
+      .setting-description {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      .toggle {
         position: relative;
+        width: 42px;
+        height: 24px;
+        background: var(--border);
+        border-radius: 12px;
         cursor: pointer;
         transition: background 0.3s;
-        flex-shrink: 0;
-        margin-right: 12px;
       }
 
-      input[type="checkbox"]:checked {
-        background: #667eea;
+      .toggle.active {
+        background: var(--primary);
       }
 
-      input[type="checkbox"]::before {
-        content: "";
+      .toggle-slider {
         position: absolute;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
         background: white;
-        top: 2px;
-        left: 2px;
+        border-radius: 50%;
         transition: transform 0.3s;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       }
 
-      input[type="checkbox"]:checked::before {
-        transform: translateX(20px);
+      .toggle.active .toggle-slider {
+        transform: translateX(18px);
       }
 
-      .label-text {
-        font-size: 14px;
-        color: #4a5568;
-        font-weight: 500;
-        user-select: none;
-      }
-
-      .volume-container {
-        padding: 16px 12px;
-        background: #f7fafc;
+      .volume-control {
+        background: var(--surface);
+        border: 1px solid var(--border);
         border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 8px;
+        transition: all 0.2s;
       }
 
-      .volume-label {
+      .volume-control:hover {
+        background: var(--surface-hover);
+        border-color: rgba(91, 71, 224, 0.3);
+      }
+
+      .volume-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
       }
 
-      .volume-text {
-        font-size: 14px;
-        color: #4a5568;
+      .volume-label {
+        font-size: 13px;
         font-weight: 500;
       }
 
       .volume-value {
-        font-size: 12px;
-        color: #667eea;
+        font-size: 13px;
+        color: var(--primary);
         font-weight: 600;
-        min-width: 30px;
+        min-width: 35px;
         text-align: right;
+        background: rgba(91, 71, 224, 0.1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(91, 71, 224, 0.2);
       }
 
-      input[type="range"] {
+      .volume-slider-container {
+        position: relative;
+        padding: 8px 0;
+      }
+
+      .volume-slider {
         width: 100%;
-        height: 6px;
-        background: #e2e8f0;
-        border-radius: 3px;
+        height: 8px;
+        background: var(--border);
+        border-radius: 4px;
         outline: none;
+        -webkit-appearance: none;
         appearance: none;
         cursor: pointer;
+        position: relative;
+        transition: all 0.3s ease;
       }
 
-      input[type="range"]::-webkit-slider-thumb {
+      .volume-slider:hover {
+        height: 10px;
+      }
+
+      .volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
         appearance: none;
-        width: 18px;
-        height: 18px;
-        background: #667eea;
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
         border-radius: 50%;
         cursor: pointer;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
-        transition: transform 0.2s;
+        box-shadow: 0 4px 12px rgba(91, 71, 224, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 4px rgba(91, 71, 224, 0.1);
+        transition: all 0.2s ease;
+        border: 3px solid var(--surface);
+        position: relative;
       }
 
-      input[type="range"]::-webkit-slider-thumb:hover {
+      .volume-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 6px 20px rgba(91, 71, 224, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 0 6px rgba(91, 71, 224, 0.15);
+      }
+
+      .volume-slider::-webkit-slider-thumb:active {
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(91, 71, 224, 0.5), 0 0 0 8px rgba(91, 71, 224, 0.2);
+      }
+
+      .volume-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
+        border-radius: 50%;
+        cursor: pointer;
+        border: 3px solid var(--surface);
+        box-shadow: 0 4px 12px rgba(91, 71, 224, 0.3), 0 0 0 4px rgba(91, 71, 224, 0.1);
+        transition: all 0.2s ease;
+      }
+
+      .volume-slider::-moz-range-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 6px 20px rgba(91, 71, 224, 0.4), 0 0 0 6px rgba(91, 71, 224, 0.15);
+      }
+
+      .volume-slider::-moz-range-track {
+        height: 8px;
+        background: var(--border);
+        border-radius: 4px;
+        border: none;
+      }
+
+      .volume-indicators {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding: 0 12px;
+      }
+
+      .volume-indicator {
+        font-size: 10px;
+        color: var(--text-dim);
+        opacity: 0.6;
+        transition: all 0.2s;
+      }
+
+      .volume-indicator.active {
+        color: var(--primary);
+        opacity: 1;
+        font-weight: 600;
+      }
+
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 200px;
+        color: var(--text-muted);
+        font-size: 14px;
+      }
+
+      .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 10px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+      }
+
+      .empty-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        opacity: 0.5;
+      }
+
+      .empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+
+      .empty-text {
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      #customRangeBtn {
+        background: var(--primary);
+        border: none;
+        border-radius: 6px;
+        color: white;
+        padding: 6px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        margin-left: 8px;
+      }
+
+      #customRangeBtn:hover {
+        background: var(--primary-dark);
+      }
+
+      #datePickerModal.active,
+      #modalOverlay.active {
+        display: block !important;
+      }
+
+      .heatmap-wrapper {
+        padding: 16px 8px 24px 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        position: relative;
+        border-radius: 8px;
+
+        scrollbar-width: thin;
+        scrollbar-color: rgba(91, 71, 224, 0.6) rgba(255, 255, 255, 0.08);
+      }
+
+      .heatmap-wrapper::-webkit-scrollbar {
+        height: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+      }
+
+      .heatmap-wrapper::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        margin: 0 8px;
+      }
+
+      .heatmap-wrapper::-webkit-scrollbar-thumb {
+        background: linear-gradient(90deg, rgba(91, 71, 224, 0.6) 0%, rgba(139, 92, 246, 0.6) 100%);
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+        min-width: 40px;
+      }
+
+      .heatmap-wrapper::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(90deg, rgba(91, 71, 224, 0.8) 0%, rgba(139, 92, 246, 0.8) 100%);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 2px 8px rgba(91, 71, 224, 0.3);
+      }
+
+      .heatmap-wrapper::-webkit-scrollbar-thumb:active {
+        background: linear-gradient(90deg, var(--primary) 0%, #8b5cf6 100%);
+        box-shadow: 0 2px 12px rgba(91, 71, 224, 0.5);
+      }
+
+      .heatmap-wrapper::before,
+      .heatmap-wrapper::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 24px;
+        width: 16px;
+        pointer-events: none;
+        z-index: 10;
+        transition: opacity 0.3s ease;
+      }
+
+      .heatmap-wrapper::before {
+        left: 0;
+        background: linear-gradient(to right, var(--surface) 0%, rgba(19, 19, 22, 0.8) 60%, transparent 100%);
+        opacity: 0;
+      }
+
+      .heatmap-wrapper::after {
+        right: 0;
+        background: linear-gradient(to left, var(--surface) 0%, rgba(19, 19, 22, 0.8) 60%, transparent 100%);
+        opacity: 0;
+      }
+
+      .heatmap-wrapper.can-scroll-left::before {
+        opacity: 1;
+      }
+
+      .heatmap-wrapper.can-scroll-right::after {
+        opacity: 1;
+      }
+
+      .heatmap-wrapper:focus {
+        outline: 2px solid rgba(91, 71, 224, 0.5);
+        outline-offset: 2px;
+        border-radius: 8px;
+      }
+
+      .heatmap-legend {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        margin-top: 12px;
+        gap: 8px;
+      }
+
+      .legend-label {
+        font-size: 10px;
+        color: var(--text-dim);
+        font-weight: 500;
+      }
+
+      .legend-squares {
+        display: flex;
+        gap: 3px;
+      }
+
+      .legend-square {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        transition: transform 0.2s ease;
+      }
+
+      .legend-square:hover {
         transform: scale(1.2);
       }
 
-      input[type="range"]::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
-        background: #667eea;
-        border-radius: 50%;
+      .legend-square.level-0 {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .legend-square.level-1 {
+        background: rgba(16, 185, 129, 0.3);
+      }
+
+      .legend-square.level-2 {
+        background: rgba(16, 185, 129, 0.5);
+      }
+
+      .legend-square.level-3 {
+        background: rgba(16, 185, 129, 0.7);
+      }
+
+      .legend-square.level-4 {
+        background: var(--success);
+        box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+      }
+
+      .heatmap-days-labels {
+        display: grid;
+        grid-template-rows: repeat(7, 11px);
+        gap: 2px;
+        margin-right: 8px;
+        float: left;
+        padding-top: 19px;
+        position: sticky;
+        left: 0;
+        background: var(--surface);
+        z-index: 5;
+      }
+
+      .heatmap-days-labels span {
+        font-size: 9px;
+        color: var(--text-dim);
+        line-height: 11px;
+        text-align: right;
+        padding-right: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        font-weight: 500;
+      }
+
+      .heatmap-content {
+        overflow: visible;
+        margin-left: 50px;
+        min-width: fit-content;
+      }
+
+      .heatmap-months {
+        display: grid;
+        grid-auto-flow: column;
+        gap: 2px;
+        font-size: 9px;
+        color: var(--text-dim);
+        margin-bottom: 4px;
+        height: 15px;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        background: var(--surface);
+        z-index: 4;
+        padding-bottom: 2px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .heatmap-month {
+        font-weight: 600;
+        text-align: left;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .heatmap-container {
+        display: grid;
+        grid-template-rows: repeat(7, 11px);
+        grid-auto-flow: column;
+        gap: 2px;
+        width: fit-content;
+        min-width: 100%;
+      }
+
+      .heatmap-cell {
+        width: 11px;
+        height: 11px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.06);
         cursor: pointer;
-        border: none;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+        transition: all 0.2s ease;
+        position: relative;
       }
 
-      .divider {
-        height: 1px;
-        background: #e2e8f0;
-        margin: 16px 0;
+      .heatmap-cell:hover {
+        border: 1px solid var(--text-muted);
+        box-sizing: border-box;
+        transform: scale(1.1);
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
 
-      .streak-indicator {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        background: #f6ad55;
-        border-radius: 50%;
-        margin-left: 6px;
+      .heatmap-cell.level-1 {
+        background: rgba(16, 185, 129, 0.3);
+      }
+
+      .heatmap-cell.level-2 {
+        background: rgba(16, 185, 129, 0.5);
+      }
+
+      .heatmap-cell.level-3 {
+        background: rgba(16, 185, 129, 0.7);
+      }
+
+      .heatmap-cell.level-4 {
+        background: var(--success);
+        box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+      }
+
+      .heatmap-cell.failed {
+        background: rgba(239, 68, 68, 0.7);
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+      }
+
+      .heatmap-cell.today {
+        border: 1px solid var(--primary);
+        box-sizing: border-box;
         animation: pulse 2s infinite;
       }
 
       @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(246, 173, 85, 0.7);
-        }
-        70% {
-          box-shadow: 0 0 0 10px rgba(246, 173, 85, 0);
-        }
+        0%,
         100% {
-          box-shadow: 0 0 0 0 rgba(246, 173, 85, 0);
+          box-shadow: 0 0 4px rgba(91, 71, 224, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 8px rgba(91, 71, 224, 0.8);
         }
       }
     </style>
     <script src="libs/chart.min.js"></script>
+    <script src="utils/constants.js"></script>
+    <script src="utils/helpers.js"></script>
   </head>
   <body>
-    <div id="container">
-      <div class="tabs">
-        <button
-          class="tab active"
-          data-tab="stats">
-          Statistics
-        </button>
-        <button
-          class="tab"
-          data-tab="settings">
-          Settings
-        </button>
-      </div>
-
-      <div
-        id="stats"
-        class="tab-content active">
-        <div class="date-filter">
-          <label for="dateRange">Time Period:</label>
-          <select id="dateRange">
-            <option value="7">Last 7 Days</option>
-            <option value="30">Last 30 Days</option>
-            <option value="90">Last 90 Days</option>
-            <option
-              value="all"
-              selected>
-              All Time
-            </option>
-          </select>
+    <div class="container">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">♞</div>
+          <span>Chess Instead of Posts</span>
         </div>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div
-              class="stat-value"
-              id="totalPuzzles">
-              0
-            </div>
-            <div class="stat-label">Total Puzzles</div>
-            <div
-              class="stat-trend"
-              id="totalTrend"></div>
-          </div>
-          <div
-            class="stat-card highlight"
-            id="solveRateCard">
-            <div
-              class="stat-value"
-              id="solveRate">
-              0%
-            </div>
-            <div class="stat-label">Success Rate</div>
-            <div
-              class="stat-trend"
-              id="solveRateTrend"></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">
-              <span id="currentStreak">0</span>
-              <span id="streakIndicator"></span>
-            </div>
-            <div class="stat-label">Day Streak</div>
-            <div
-              class="stat-trend"
-              id="streakTrend"></div>
-          </div>
-          <div class="stat-card">
-            <div
-              class="stat-value"
-              id="avgTime">
-              0s
-            </div>
-            <div class="stat-label">Avg Time</div>
-            <div
-              class="stat-trend"
-              id="timeTrend"></div>
-          </div>
-          <div class="stat-card">
-            <div
-              class="stat-value"
-              id="bestStreak">
-              0
-            </div>
-            <div class="stat-label">Best Streak</div>
-            <div
-              class="stat-trend"
-              id="bestStreakTrend"></div>
-          </div>
-          <div class="stat-card">
-            <div
-              class="stat-value"
-              id="fastestSolve">
-              --
-            </div>
-            <div class="stat-label">Fastest Solve</div>
-            <div
-              class="stat-trend"
-              id="fastestTrend"></div>
-          </div>
-        </div>
-
-        <div class="insights-section">
-          <div class="insights-title">
-            <span class="insight-icon">●</span>
-            Performance Insights
-          </div>
-          <div id="insightsContainer">
-            <div class="insight-item">Loading insights...</div>
-          </div>
-        </div>
-
-        <div class="chart-container">
-          <div
-            class="chart-title"
-            id="performanceChartTitle">
-            Performance
-          </div>
-          <canvas id="performanceChart"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <div
-            class="chart-title"
-            id="timeChartTitle">
-            Time Distribution
-          </div>
-          <canvas id="timeChart"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <div
-            class="chart-title"
-            id="trendChartTitle">
-            Solve Rate Trend
-          </div>
-          <canvas id="trendChart"></canvas>
+        <div class="nav">
+          <button class="nav-btn active" data-tab="stats">Stats</button>
+          <button class="nav-btn" data-tab="settings">Settings</button>
         </div>
       </div>
 
-      <div
-        id="settings"
-        class="tab-content">
-        <h1>Settings</h1>
-
-        <div class="setting-item">
-          <label class="checkbox-wrapper">
-            <input
-              type="checkbox"
-              id="autoZenMode"
-              name="autoZenMode" />
-            <span class="label-text">Enable Auto Zen Mode</span>
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="checkbox-wrapper">
-            <input
-              type="checkbox"
-              id="hideLayoutAside"
-              name="hideLayoutAside" />
-            <span class="label-text">Hide Layout Aside</span>
-          </label>
-        </div>
-
-        <div class="setting-item">
-          <label class="checkbox-wrapper">
-            <input
-              type="checkbox"
-              id="dailyPuzzlesDisabled"
-              name="dailyPuzzlesDisabled" />
-            <span class="label-text">Disable Daily Puzzles</span>
-          </label>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="volume-container">
-          <div class="volume-label">
-            <span class="volume-text">Sound Volume</span>
-            <span
-              class="volume-value"
-              id="volumeDisplay"></span>
+      <div class="content">
+        <div id="stats" class="tab-content active">
+          <div class="filter-bar">
+            <span class="filter-label">Time Period</span>
+            <select id="dateRange" class="filter-select">
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+              <option value="90">Last 90 Days</option>
+              <option value="365">Last Year</option>
+              <option value="all" selected>All Time</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            <button id="customRangeBtn" style="display: none">
+              <span id="customRangeDates">Select Dates</span>
+            </button>
           </div>
-          <input
-            type="range"
-            id="soundVolume"
-            name="soundVolume"
-            min="0"
-            max="100"
-            value="30" />
+
+          <div class="rating-section">
+            <div class="rating-card">
+              <div class="rating-header">
+                <div class="rating-icon skeleton" id="userTierIcon"></div>
+                <div class="rating-info">
+                  <div class="rating-value skeleton" id="userRating"></div>
+                  <div class="rating-tier skeleton" id="userTier"></div>
+                </div>
+              </div>
+
+              <div class="rating-progress">
+                <div class="rating-progress-fill skeleton" id="ratingProgressFill"></div>
+              </div>
+
+              <div class="rating-details">
+                <div class="rating-next-tier skeleton" id="ratingNextTier"></div>
+                <div class="rating-change skeleton neutral" id="ratingChange"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card primary">
+              <div class="stat-value skeleton" id="solveRate"></div>
+              <div class="stat-label">Success Rate</div>
+              <div class="stat-trend skeleton" id="solveRateTrend"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">
+                <span class="skeleton" id="currentStreak"></span>
+                <span class="streak-fire skeleton" id="streakIcon"></span>
+              </div>
+              <div class="stat-label">Current Streak</div>
+              <div class="stat-sublabel">Best: <span class="skeleton" id="bestStreak"></span></div>
+              <div class="stat-trend skeleton" id="streakTrend"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value-dual">
+                <div class="stat-main">
+                  <span class="skeleton" id="totalSolved"></span>
+                  <span class="stat-separator">/</span>
+                  <span class="skeleton stat-total" id="totalPuzzles"></span>
+                </div>
+              </div>
+              <div class="stat-label">Solved / Total</div>
+              <div class="stat-progress-bar">
+                <div class="stat-progress-fill skeleton" id="solvedProgress"></div>
+              </div>
+              <div class="stat-trend skeleton" id="totalTrend"></div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value skeleton" id="avgTime"></div>
+              <div class="stat-label">Average Time</div>
+              <div class="stat-trend skeleton" id="timeTrend"></div>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Rating Progression</div>
+                <div class="chart-subtitle">Your rating journey</div>
+              </div>
+            </div>
+            <canvas id="ratingChart"></canvas>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Activity Heatmap</div>
+                <div class="chart-subtitle" id="dateRangeDisplay">Daily puzzle activity</div>
+              </div>
+            </div>
+            <div class="heatmap-wrapper">
+              <div class="heatmap-days-labels">
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+                <span>Sun</span>
+              </div>
+              <div class="heatmap-content">
+                <div class="heatmap-months" id="heatmapMonths"></div>
+                <div id="heatmapGrid" class="heatmap-container"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Success Rate</div>
+                <div class="chart-subtitle">Rolling average</div>
+              </div>
+            </div>
+            <canvas id="successRateChart"></canvas>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">Time Distribution</div>
+                <div class="chart-subtitle">Solve speed breakdown</div>
+              </div>
+            </div>
+            <canvas id="timeChart"></canvas>
+          </div>
         </div>
 
-        <div class="setting-item">
-          <label class="checkbox-wrapper">
-            <input
-              type="checkbox"
-              id="soundsDisabled"
-              name="soundsDisabled" />
-            <span class="label-text">Disable All Sounds</span>
-          </label>
+        <div id="settings" class="tab-content">
+          <div class="settings-section">
+            <div class="settings-title">Display</div>
+            <div class="setting-item">
+              <div>
+                <div class="setting-label">Auto Zen Mode</div>
+                <div class="setting-description">Automatically enable zen mode for puzzles</div>
+              </div>
+              <div class="toggle" id="autoZenMode">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+            <div class="setting-item">
+              <div>
+                <div class="setting-label">Hide Layout Aside</div>
+                <div class="setting-description">Remove sidebar distractions</div>
+              </div>
+              <div class="toggle active" id="hideLayoutAside">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+            <div class="setting-item">
+              <div>
+                <div class="setting-label">Hide Sidebar</div>
+                <div class="setting-description">Remove sidebar distractions</div>
+              </div>
+              <div class="toggle active" id="hideSidebar">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Puzzles</div>
+            <div class="setting-item">
+              <div>
+                <div class="setting-label">Disable Daily Puzzles</div>
+                <div class="setting-description">Skip automatic daily puzzle prompt</div>
+              </div>
+              <div class="toggle" id="dailyPuzzlesDisabled">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Audio</div>
+            <div class="volume-control">
+              <div class="volume-header">
+                <span class="volume-label">Sound Volume</span>
+                <span class="volume-value" id="volumeDisplay">30%</span>
+              </div>
+              <div class="volume-slider-container">
+                <input type="range" class="volume-slider" id="soundVolume" min="0" max="100" value="30" />
+              </div>
+              <div class="volume-indicators">
+                <span class="volume-indicator">🔇</span>
+                <span class="volume-indicator">🔉</span>
+                <span class="volume-indicator">🔊</span>
+              </div>
+            </div>
+            <div class="setting-item">
+              <div>
+                <div class="setting-label">Disable All Sounds</div>
+                <div class="setting-description">Mute all puzzle sounds</div>
+              </div>
+              <div class="toggle" id="soundsDisabled">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Date Picker Modal -->
+    <div
+      id="modalOverlay"
+      style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000"></div>
+    <div
+      id="datePickerModal"
+      style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        z-index: 1001;
+        min-width: 300px;
+      ">
+      <h3 style="margin-bottom: 16px; color: var(--text)">Select Date Range</h3>
+      <div style="display: flex; gap: 12px; margin-bottom: 16px">
+        <div style="flex: 1">
+          <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--text-muted)">Start Date (DD/MM/YYYY)</label>
+          <input
+            type="text"
+            id="startDate"
+            placeholder="DD/MM/YYYY"
+            maxlength="10"
+            style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text)" />
+        </div>
+        <div style="flex: 1">
+          <label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--text-muted)">End Date (DD/MM/YYYY)</label>
+          <input
+            type="text"
+            id="endDate"
+            placeholder="DD/MM/YYYY"
+            maxlength="10"
+            style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text)" />
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end">
+        <button
+          id="cancelDatePicker"
+          style="
+            padding: 8px 16px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            cursor: pointer;
+          ">
+          Cancel
+        </button>
+        <button
+          id="applyDatePicker"
+          style="padding: 8px 16px; background: var(--primary); border: none; border-radius: 6px; color: white; cursor: pointer">
+          Apply
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="scripts/popup.js"></script>
   </body>
-  <script src="scripts/popup.js"></script>
 </html>

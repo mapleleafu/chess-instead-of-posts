@@ -14,12 +14,14 @@ const SOUND_PATHS = {
 };
 
 const TIER_THRESHOLDS = [
-  { min: 0, max: 800, icon: "🎯", color: "#94a3b8", name: "Beginner" },
-  { min: 800, max: 1200, icon: "🥉", color: "#cd7f32", name: "Bronze" },
-  { min: 1200, max: 1600, icon: "🥈", color: "#c0c0c0", name: "Silver" },
-  { min: 1600, max: 2000, icon: "🥇", color: "#ffd700", name: "Gold" },
-  { min: 2000, max: 2400, icon: "💎", color: "#60a5fa", name: "Diamond" },
-  { min: 2400, max: Infinity, icon: "👑", color: "#a855f7", name: "Master" },
+  { min: 0, max: 1199, icon: "🎯", color: "#94a3b8", name: "Beginner" },
+  { min: 1200, max: 1399, icon: "🥉", color: "#cd7f32", name: "Novice" },
+  { min: 1400, max: 1599, icon: "🥈", color: "#c0c0c0", name: "Intermediate" },
+  { min: 1600, max: 1799, icon: "🥇", color: "#ffd700", name: "Advanced" },
+  { min: 1800, max: 1999, icon: "💎", color: "#b91c1c", name: "Expert" },
+  { min: 2000, max: 2199, icon: "⚔️", color: "#7c3aed", name: "Master" },
+  { min: 2200, max: 2399, icon: "🏆", color: "#0891b2", name: "International Master" },
+  { min: 2400, max: Infinity, icon: "👑", color: "#dc2626", name: "Grandmaster" },
 ];
 
 const DIFFICULTY_ICONS = {
