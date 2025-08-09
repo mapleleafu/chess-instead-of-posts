@@ -71,6 +71,7 @@ const initializeUserRating = async () => {
     userState.rating = userState.glickoRanking.makePlayer(rating, rd, volatility);
   } else {
     userState.rating = userState.glickoRanking.makePlayer();
+    await chrome.storage.local.set({ defaultUserRating: DEFAULT_PUZZLE_RATING });
     await saveUserRating();
   }
 };
@@ -326,6 +327,7 @@ const savePuzzleAttempt = async options => {
       isFinished: isSolved || isFinished,
       isUserRatingUpdated: userState.isRatingUpdated,
       ratingChange: userState.ratingChange,
+      userRatingAfter: userState.rating.getRating(),
     };
 
     if (existingIndex === -1) {
@@ -812,6 +814,7 @@ const createDebugButtons = async container => {
   const logStateBtn = debugDiv.querySelector("#logStateBtn");
   const resetAttemptsBtn = debugDiv.querySelector("#resetAttemptsBtn");
   const removeDebugBtn = debugDiv.querySelector("#removeDebugBtn");
+  const generateDataBtn = debugDiv.querySelector("#generateDataBtn");
 
   if (logStateBtn) {
     logStateBtn.addEventListener("click", () => {
@@ -827,6 +830,37 @@ const createDebugButtons = async container => {
       puzzleState.hasIncorrectMoves = false;
       userState.isRatingUpdated = false;
       console.log("~ Puzzle attempts deleted.");
+
+      await chrome.storage.local.remove("userRating");
+      userState.rating = null;
+    });
+  }
+
+  if (generateDataBtn) {
+    generateDataBtn.addEventListener("click", async () => {
+      try {
+        const { puzzles, finalRating } = generatePuzzleDataSet(200);
+
+        await chrome.storage.local.set({ puzzleAttempts: puzzles });
+        await chrome.storage.local.get("userRating", result => {
+          const updatedUserRating = { ...(result.userRating), rating: finalRating };
+          chrome.storage.local.set({ userRating: updatedUserRating });
+        });
+
+        console.log(`✅ Generated and saved ${puzzles.length} test puzzle attempts`);
+        generateDataBtn.textContent = "✅ Generated!";
+
+        setTimeout(() => {
+          generateDataBtn.textContent = "Generate Test Data";
+        }, 2000);
+      } catch (error) {
+        console.error("Failed to generate test data:", error);
+        generateDataBtn.textContent = "❌ Failed";
+
+        setTimeout(() => {
+          generateDataBtn.textContent = "Generate Test Data";
+        }, 2000);
+      }
     });
   }
 

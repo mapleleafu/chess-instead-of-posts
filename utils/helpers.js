@@ -31,9 +31,7 @@ class AudioManager {
     sound.volume = (settings.soundVolume || 100) / 100;
     try {
       await sound.play();
-    } catch (error) {
-      console.warn(`Failed to play sound ${soundName}:`, error);
-    }
+    } catch {} // Fail silently
   }
 
   preloadSounds() {
