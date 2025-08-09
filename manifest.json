@@ -1,6 +1,6 @@
 {
   "name": "Chess Instead of Posts",
-  "description": "Browser extension that blocks LinkedIn feed and shows daily chess puzzles instead.",
+  "description": "Browser extension that blocks social media feed and shows daily chess puzzles instead.",
   "version": "1.0",
   "manifest_version": 3,
   "icons": {

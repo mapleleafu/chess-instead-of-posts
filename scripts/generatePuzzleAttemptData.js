@@ -41,8 +41,8 @@ function generateRealisticPuzzleData(index, totalPuzzles, currentRating, skillPr
 
   // Realistic solving times based on puzzle difficulty and success
   const difficultyFactor = Math.abs(ratingDiff) / 400; // 0 to 1+
-  const baseSolveTime = isSolved ? 15 + difficultyFactor * 45 : 8 + Math.random() * 25;
-  const timeSpentSeconds = Number((baseSolveTime + Math.random() * 20).toFixed(1));
+  const baseSolveTime = isSolved ? 5 + difficultyFactor * 85 : 5 + Math.random() * 85;
+  const timeSpentSeconds = Number((baseSolveTime + Math.random() * 5).toFixed(1));
 
   return {
     fen: fenPositions[Math.floor(Math.random() * fenPositions.length)],
@@ -53,7 +53,7 @@ function generateRealisticPuzzleData(index, totalPuzzles, currentRating, skillPr
     puzzleRating: puzzleRating,
     puzzleRatingDeviation: Math.floor(Math.random() * 100) + 50,
     ratingChange: ratingChange,
-    userRatingAfter: currentRating,
+    userRatingAfter: currentRating + ratingChange,
     timeSpentSeconds: timeSpentSeconds,
     timestamp: timestamp.toISOString(),
   };
