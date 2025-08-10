@@ -2,7 +2,8 @@ const POST_CLASS_NAME = ".scaffold-finite-scroll";
 const DROPDOWN_ID = "#ember36";
 const LAYOUT_ASIDE = ".scaffold-layout__aside";
 const LAYOUT_SIDEBAR = ".scaffold-layout__sidebar";
-const RELEASE_DATE = new Date('2025-05-25').getTime();
+const LINKEDIN_FEED_SELECTOR = '.scaffold-finite-scroll__content[data-finite-scroll-hotkey-context="FEED"]';
+const RELEASE_DATE = new Date("2025-06-07").getTime();
 const DEFAULT_PUZZLE_RATING = 1500;
 const DEBUG_MODE = false;
 

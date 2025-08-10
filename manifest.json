@@ -1,6 +1,6 @@
 {
   "name": "Chess Instead of Posts",
-  "description": "Browser extension that blocks social media feed and shows daily chess puzzles instead.",
+  "description": "Blocks social media feed and shows daily chess puzzles instead.",
   "version": "1.0",
   "manifest_version": 3,
   "icons": {
@@ -22,8 +22,9 @@
   },
   "content_scripts": [
     {
-      "css": [
-        "styles/hide.css"
+      "js": [
+        "utils/constants.js",
+        "scripts/hideContent.js"
       ],
       "matches": [
         "*://*.linkedin.com/*"
@@ -32,7 +33,6 @@
     },
     {
       "js": [
-        "utils/constants.js",
         "utils/helpers.js",
         "libs/jquery-3.5.1.min.js",
         "libs/chess.js",

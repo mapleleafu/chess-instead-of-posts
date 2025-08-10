@@ -55,6 +55,30 @@ const renderTemplate = (template, data) => {
 
 const checkSite = () => window.location.href.includes("linkedin.com/feed");
 
+const restoreLinkedInFeed = () => {
+  const existingContainer = document.getElementById("chess-container");
+  if (existingContainer) {
+    existingContainer.remove();
+  }
+
+  const feedElement = document.querySelector(LINKEDIN_FEED_SELECTOR);
+  if (feedElement) {
+    feedElement.style.display = "";
+  }
+
+  const overrideStyle = document.getElementById("linkedin-feed-restore");
+  if (!overrideStyle) {
+    const style = document.createElement("style");
+    style.id = "linkedin-feed-restore";
+    style.textContent = `
+      ${LINKEDIN_FEED_SELECTOR} {
+        display: block !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+};
+
 const getMoveColor = () => (boardState.game.turn() === "w" ? "White" : "Black");
 
 const initializeUserRating = async () => {
@@ -843,7 +867,7 @@ const createDebugButtons = async container => {
 
         await chrome.storage.local.set({ puzzleAttempts: puzzles });
         await chrome.storage.local.get("userRating", result => {
-          const updatedUserRating = { ...(result.userRating), rating: finalRating };
+          const updatedUserRating = { ...result.userRating, rating: finalRating };
           chrome.storage.local.set({ userRating: updatedUserRating });
         });
 
@@ -1331,7 +1355,7 @@ const toggleZenMode = () => {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.95);
+      background: rgba(0, 0, 0, 0.98);
       z-index: 9995;
       display: flex;
       justify-content: center;
@@ -1419,8 +1443,13 @@ const getSettings = async () => {
 const main = async (mutationDetected = false) => {
   if (!checkSite()) return;
 
-  await initializeUserRating();
   const settings = await getSettings();
+  if (settings?.extensionDisabled) {
+    restoreLinkedInFeed();
+    return;
+  }
+
+  await initializeUserRating();
   applyGeneralSettings(settings);
   if (settings?.dailyPuzzlesDisabled) return;
 

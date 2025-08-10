@@ -43,12 +43,27 @@ function initEventListeners() {
 
   elements.toggles.forEach(toggle => {
     toggle.addEventListener("click", () => {
+      const settingItem = toggle.closest(".setting-item");
+      const volumeControl = toggle.closest(".volume-control");
+      if (settingItem?.classList.contains("locked") || volumeControl?.classList.contains("locked")) {
+        return;
+      }
+
       toggle.classList.toggle("active");
       saveSettings();
+
+      if (toggle.id === "extensionDisabled") {
+        updateSettingsLockState();
+      }
     });
   });
 
   elements.volumeSlider.addEventListener("input", e => {
+    const volumeControl = e.target.closest(".volume-control");
+    if (volumeControl?.classList.contains("locked")) {
+      return;
+    }
+
     if (elements.volumeDisplay) {
       elements.volumeDisplay.textContent = `${e.target.value}%`;
     }
@@ -925,10 +940,52 @@ function initSettings() {
           }
         }
       });
+
+      updateSettingsLockState();
     } else {
       if (elements.volumeSlider) {
         updateSliderBackground(elements.volumeSlider);
         updateVolumeIndicators(elements.volumeSlider.value);
+      }
+    }
+  });
+}
+
+function updateSettingsLockState() {
+  const extensionDisabledToggle = document.getElementById("extensionDisabled");
+  const isExtensionDisabled = extensionDisabledToggle?.classList.contains("active");
+
+  const settingItems = document.querySelectorAll(".setting-item");
+  const volumeControl = document.querySelector(".volume-control");
+  const settingSections = document.querySelectorAll(".settings-section");
+
+  settingItems.forEach(item => {
+    const toggle = item.querySelector(".toggle");
+
+    if (toggle && toggle.id !== "extensionDisabled") {
+      if (isExtensionDisabled) {
+        item.classList.add("locked");
+      } else {
+        item.classList.remove("locked");
+      }
+    }
+  });
+
+  if (volumeControl) {
+    if (isExtensionDisabled) {
+      volumeControl.classList.add("locked");
+    } else {
+      volumeControl.classList.remove("locked");
+    }
+  }
+
+  settingSections.forEach(section => {
+    const sectionTitle = section.querySelector(".settings-title");
+    if (sectionTitle && sectionTitle.textContent !== "Extension") {
+      if (isExtensionDisabled) {
+        section.classList.add("locked");
+      } else {
+        section.classList.remove("locked");
       }
     }
   });
@@ -945,6 +1002,7 @@ function saveSettings() {
     settings.soundVolume = elements.volumeSlider.value;
   }
 
+  state.settings = settings;
   chrome.storage.local.set({ settings });
 }
 
