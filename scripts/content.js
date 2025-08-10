@@ -74,6 +74,14 @@ const restoreLinkedInFeed = () => {
       ${LINKEDIN_FEED_SELECTOR} {
         display: block !important;
       }
+
+      ${LINKEDIN_FEED_ENTRY} {
+        display: block !important;
+      }
+
+      ${LINKEDIN_FEED_DROPDOWN} {
+        display: block !important;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -921,7 +929,6 @@ const createBoardContainer = () => {
   container.innerHTML = `
     <div id="board" style="width: 400px;"></div>
       <div id="chess-buttons" style="
-        margin-top: 24px; 
         display: flex; 
         flex-wrap: wrap; 
         gap: 12px; 
@@ -941,7 +948,7 @@ const createBoardContainer = () => {
           <span>🧘</span> <span>Zen Mode</span>
         </button>
       </div>
-    <div id="status" style="margin-top: 20px;"></div>
+    <div id="status"></div>
   `;
 
   return container;
@@ -1408,6 +1415,16 @@ const applyGeneralSettings = settings => {
   if (settings?.hideSidebar) {
     const sidebarRef = document.querySelector(LAYOUT_SIDEBAR);
     if (sidebarRef) sidebarRef.remove();
+  }
+
+  if (settings?.hideFeedEntry) {
+    const feedEntry = document.querySelector(LINKEDIN_FEED_ENTRY);
+    if (feedEntry) feedEntry.remove();
+  }
+
+  if (settings?.hideDropdown) {
+    const dropdown = document.querySelector(LINKEDIN_FEED_DROPDOWN);
+    if (dropdown) dropdown.remove();
   }
 };
 

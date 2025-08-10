@@ -1,0 +1,4 @@
+/* Hide the main LinkedIn feed posts */
+.scaffold-finite-scroll__content[data-finite-scroll-hotkey-context="FEED"] {
+  display: none !important;
+}

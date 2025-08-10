@@ -1,3 +1,23 @@
+/* Vertical centering for chess container */
+#chess-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 80vh !important;
+  box-sizing: border-box !important;
+}
+
+/* Ensure completion container also centers vertically */
+#chess-container.completion-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 80vh !important;
+  box-sizing: border-box !important;
+}
+
 .move-dest {
   background-image: radial-gradient(transparent 0%, transparent 79%, rgba(20, 85, 0, 0.3) 80%) !important;
 }
