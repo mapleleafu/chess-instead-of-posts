@@ -30,7 +30,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 
 <table>
 <tr>
-<td width="33%">
+<td width="50%">
 
 ### 🧩 **Smart Puzzle Matching**
 - **Adaptive Mode**: Puzzles scale with your rating
@@ -38,7 +38,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Beginner to grandmaster difficulty
 
 </td>
-<td width="33%">
+<td width="50%">
 
 ### 📊 **Comprehensive Analytics** 
 - Real-time rating tracking
@@ -46,7 +46,9 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Performance insights
 
 </td>
-<td width="33%">
+</tr>
+<tr>
+<td>
 
 ### 💰 **Completely Free**
 - No premium features
@@ -54,9 +56,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Full functionality for everyone
 
 </td>
-</tr>
-<tr>
-<td width="50%">
+<td>
 
 ### 🏆 **8-Tier Progression**
 - Beginner → Grandmaster
@@ -64,7 +64,9 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Clear improvement goals
 
 </td>
-<td width="50%">
+</tr>
+<tr>
+<td colspan="2">
 
 ### 🧘 **Distraction-Free Experience**
 - **Zen Mode**: Board-only focus
@@ -74,11 +76,6 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 </td>
 </tr>
 </table>
-
-### 🧘 **Distraction-Free Experience**
-- **Zen Mode**: Board-only focus
-- **Instant Blocking**: No feed flash
-- Clean, minimal interface
 
 <div align="center">
   <img src="public/images/analytics.png" alt="Analytics Dashboard" width="700">
