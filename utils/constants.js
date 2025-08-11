@@ -6,7 +6,7 @@ const LAYOUT_ASIDE = ".scaffold-layout__aside";
 const LAYOUT_SIDEBAR = ".scaffold-layout__sidebar";
 const POST_CLASS_NAME = ".scaffold-finite-scroll";
 
-const RELEASE_DATE = new Date("2025-08-09").getTime();
+const RELEASE_DATE = new Date("2025-08-01").getTime();
 const DEFAULT_PUZZLE_RATING = 1500;
 const DEBUG_MODE = false;
 

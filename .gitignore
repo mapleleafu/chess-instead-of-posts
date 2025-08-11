@@ -1,2 +1,4 @@
 chrome-store/*
-TODO.yaml
+*.yaml
+*.zip
+*.txt

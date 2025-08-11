@@ -421,8 +421,7 @@ const toggleLockBoard = (lockBoard = null) => {
 };
 
 const playSound = async soundName => {
-  const result = await chrome.storage.local.get("settings");
-  const settings = result.settings || {};
+  const settings = await getSettings();
   await audioManager.playSound(soundName, settings);
 };
 
