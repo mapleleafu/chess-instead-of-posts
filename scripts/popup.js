@@ -12,6 +12,8 @@ const elements = {
   tabs: document.querySelectorAll(".tab-content"),
   dateRange: document.getElementById("dateRange"),
   toggles: document.querySelectorAll(".toggle"),
+  puzzleModeOptions: document.querySelectorAll(".puzzle-mode-option"),
+  collapsibleHeaders: document.querySelectorAll("[data-collapsible]"),
   volumeSlider: document.getElementById("soundVolume"),
   volumeDisplay: document.getElementById("volumeDisplay"),
   customRangeBtn: document.getElementById("customRangeBtn"),
@@ -54,6 +56,39 @@ function initEventListeners() {
 
       if (toggle.id === "extensionDisabled") {
         updateSettingsLockState();
+      }
+    });
+  });
+
+  elements.puzzleModeOptions.forEach(option => {
+    option.addEventListener("click", () => {
+      const puzzleModeContainer = option.closest(".puzzle-mode-setting");
+      if (puzzleModeContainer?.classList.contains("locked")) {
+        return;
+      }
+
+      elements.puzzleModeOptions.forEach(opt => opt.classList.remove("active"));
+      option.classList.add("active");
+
+      saveSettings();
+    });
+  });
+
+  elements.collapsibleHeaders.forEach(header => {
+    header.addEventListener("click", () => {
+      const platform = header.dataset.collapsible;
+      const controls = document.getElementById(`${platform}-controls`);
+
+      if (controls) {
+        const isCollapsed = controls.classList.contains("collapsed");
+
+        if (isCollapsed) {
+          controls.classList.remove("collapsed");
+          header.classList.remove("collapsed");
+        } else {
+          controls.classList.add("collapsed");
+          header.classList.add("collapsed");
+        }
       }
     });
   });
@@ -941,8 +976,19 @@ function initSettings() {
         }
       });
 
+      if (data.settings.puzzleMode) {
+        elements.puzzleModeOptions.forEach(option => {
+          option.classList.toggle("active", option.dataset.mode === data.settings.puzzleMode);
+        });
+      }
+
       updateSettingsLockState();
     } else {
+      const dailyOption = document.querySelector('.puzzle-mode-option[data-mode="adaptive"]');
+      if (dailyOption) {
+        dailyOption.classList.add("active");
+      }
+
       if (elements.volumeSlider) {
         updateSliderBackground(elements.volumeSlider);
         updateVolumeIndicators(elements.volumeSlider.value);
@@ -956,6 +1002,7 @@ function updateSettingsLockState() {
   const isExtensionDisabled = extensionDisabledToggle?.classList.contains("active");
 
   const settingItems = document.querySelectorAll(".setting-item");
+  const puzzleModeSettings = document.querySelectorAll(".puzzle-mode-setting");
   const volumeControl = document.querySelector(".volume-control");
   const settingSections = document.querySelectorAll(".settings-section");
 
@@ -968,6 +1015,14 @@ function updateSettingsLockState() {
       } else {
         item.classList.remove("locked");
       }
+    }
+  });
+
+  puzzleModeSettings.forEach(setting => {
+    if (isExtensionDisabled) {
+      setting.classList.add("locked");
+    } else {
+      setting.classList.remove("locked");
     }
   });
 
@@ -997,6 +1052,11 @@ function saveSettings() {
   elements.toggles.forEach(toggle => {
     settings[toggle.id] = toggle.classList.contains("active");
   });
+
+  const activePuzzleMode = document.querySelector(".puzzle-mode-option.active");
+  if (activePuzzleMode) {
+    settings.puzzleMode = activePuzzleMode.dataset.mode;
+  }
 
   if (elements.volumeSlider) {
     settings.soundVolume = elements.volumeSlider.value;

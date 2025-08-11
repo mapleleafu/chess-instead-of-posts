@@ -10,6 +10,19 @@ const RELEASE_DATE = new Date("2025-08-09").getTime();
 const DEFAULT_PUZZLE_RATING = 1500;
 const DEBUG_MODE = false;
 
+const DEFAULT_SETTINGS = {
+  extensionDisabled: false,
+  dailyPuzzlesDisabled: false,
+  puzzleMode: 'adaptive', // 'adaptive', 'daily'
+  soundVolume: 30,
+  soundsDisabled: false,
+  autoZenMode: false,
+  hideFeedEntry: true,
+  hideDropdown: true,
+  hideLayoutAside: true,
+  hideSidebar: true
+};
+
 const SOUND_PATHS = {
   Move: "static/sounds/Move.mp3",
   Capture: "static/sounds/Capture.mp3",

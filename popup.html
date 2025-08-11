@@ -866,6 +866,275 @@
         transform: translateX(18px);
       }
 
+      .puzzle-mode-setting {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 8px;
+        transition: all 0.2s;
+      }
+
+      .puzzle-mode-setting:hover {
+        background: var(--surface-hover);
+        border-color: rgba(91, 71, 224, 0.3);
+      }
+
+      .puzzle-mode-setting .setting-label {
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+
+      .puzzle-mode-setting .setting-description {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      .puzzle-mode-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .puzzle-mode-option {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: rgba(255, 255, 255, 0.02);
+      }
+
+      .puzzle-mode-option:hover {
+        border-color: rgba(91, 71, 224, 0.4);
+        background: rgba(91, 71, 224, 0.05);
+      }
+
+      .puzzle-mode-option.active {
+        border-color: var(--primary);
+        background: rgba(91, 71, 224, 0.1);
+        box-shadow: 0 0 0 1px rgba(91, 71, 224, 0.2);
+      }
+
+      .mode-icon {
+        font-size: 20px;
+        margin-right: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+      }
+
+      .mode-content {
+        flex: 1;
+      }
+
+      .mode-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 2px;
+      }
+
+      .mode-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.3;
+      }
+
+      .puzzle-mode-option.active .mode-title {
+        color: var(--primary);
+      }
+
+      .puzzle-mode-option.active .mode-desc {
+        color: var(--text);
+      }
+
+      .puzzle-mode-setting.locked {
+        opacity: 0.5;
+        pointer-events: none;
+        position: relative;
+        transition: all 0.2s ease;
+      }
+
+      .puzzle-mode-setting.locked::before {
+        content: "Extension is disabled";
+        position: absolute;
+        right: 0;
+        top: -30px;
+        background: var(--bg);
+        color: var(--text-muted);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        z-index: 10;
+        border: 1px solid var(--border);
+      }
+
+      .puzzle-mode-setting.locked:hover::before {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .platform-settings {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: all 0.2s;
+      }
+
+      .platform-settings:hover {
+        background: var(--surface-hover);
+        border-color: rgba(91, 71, 224, 0.3);
+      }
+
+      .platform-settings.disabled {
+        opacity: 0.6;
+        background: var(--surface);
+        cursor: not-allowed;
+      }
+
+      .platform-settings.disabled:hover {
+        background: var(--surface);
+        border-color: var(--border);
+      }
+
+      .platform-header {
+        display: flex;
+        align-items: center;
+        padding: 14px 16px;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .platform-header:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .collapse-icon {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        color: var(--text-muted);
+        transition: all 0.3s ease;
+      }
+
+      .platform-header.collapsed .collapse-icon {
+        transform: rotate(-90deg);
+      }
+
+      .platform-header:hover .collapse-icon {
+        color: var(--text);
+      }
+
+      .platform-icon {
+        font-size: 20px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-dark);
+        border-radius: 6px;
+        border: 1px solid rgba(91, 71, 224, 0.2);
+        overflow: hidden;
+      }
+
+      .platform-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 4px;
+      }
+
+      .platform-settings.disabled .platform-icon {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+        filter: grayscale(1);
+      }
+
+      .platform-info {
+        flex: 1;
+      }
+
+      .platform-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 2px;
+      }
+
+      .platform-status {
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+
+      .platform-status.active {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+      }
+
+      .platform-status.coming-soon {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+      }
+
+      .platform-controls {
+        border-top: 1px solid var(--border);
+        padding: 8px 0;
+        max-height: 500px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        opacity: 1;
+      }
+
+      .platform-controls.collapsed {
+        max-height: 0;
+        padding: 0;
+        opacity: 0;
+        border-top: none;
+      }
+
+      .platform-controls .setting-item {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        margin-bottom: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .platform-controls .setting-item:last-child {
+        border-bottom: none;
+      }
+
+      .platform-controls .setting-item:hover {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(255, 255, 255, 0.05);
+      }
+
       .volume-control {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -1388,7 +1657,6 @@
               <div class="stat-value-dual">
                 <div class="stat-main">
                   <span class="skeleton" id="totalSolved"></span>
-                  <span class="stat-separator">/</span>
                   <span class="skeleton stat-total" id="totalPuzzles"></span>
                 </div>
               </div>
@@ -1485,6 +1753,37 @@
                 <div class="toggle-slider"></div>
               </div>
             </div>
+
+            <div class="setting-item">
+              <div>
+                <div class="setting-label">Auto Zen Mode</div>
+                <div class="setting-description">Automatically enable zen mode for puzzles</div>
+              </div>
+              <div class="toggle" id="autoZenMode">
+                <div class="toggle-slider"></div>
+              </div>
+            </div>
+
+            <div class="puzzle-mode-setting">
+              <div class="setting-label">Puzzle Selection Mode</div>
+              <div class="setting-description">Choose how your daily puzzles are selected</div>
+              <div class="puzzle-mode-options">
+                <div class="puzzle-mode-option active" data-mode="adaptive">
+                  <div class="mode-icon">🎯</div>
+                  <div class="mode-content">
+                    <div class="mode-title">Adaptive Difficulty</div>
+                    <div class="mode-desc">Personalized puzzles based on your skill rating • Optimal training</div>
+                  </div>
+                </div>
+                <div class="puzzle-mode-option" data-mode="daily">
+                  <div class="mode-icon">🌍</div>
+                  <div class="mode-content">
+                    <div class="mode-title">Daily Shared Puzzles</div>
+                    <div class="mode-desc">Same puzzle as everyone else • Compete on the same challenge</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="settings-section">
@@ -1516,49 +1815,77 @@
 
           <div class="settings-section">
             <div class="settings-title">Display</div>
-            <div class="setting-item">
-              <div>
-                <div class="setting-label">Auto Zen Mode</div>
-                <div class="setting-description">Automatically enable zen mode for puzzles</div>
+
+            <div class="platform-settings">
+              <div class="platform-header" data-collapsible="linkedin">
+                <div class="platform-icon">
+                  <img src="static/images/social/linkedin.png" alt="LinkedIn" />
+                </div>
+                <div class="platform-info">
+                  <div class="platform-name">LinkedIn</div>
+                  <div class="platform-status active">Active</div>
+                </div>
+                <div class="collapse-icon">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="6,9 12,15 18,9"></polyline>
+                  </svg>
+                </div>
               </div>
-              <div class="toggle" id="autoZenMode">
-                <div class="toggle-slider"></div>
+              <div class="platform-controls" id="linkedin-controls">
+                <div class="setting-item">
+                  <div>
+                    <div class="setting-label">Hide Feed Entry</div>
+                    <div class="setting-description">Remove the "Start a post" creation box</div>
+                  </div>
+                  <div class="toggle active" id="hideFeedEntry">
+                    <div class="toggle-slider"></div>
+                  </div>
+                </div>
+                <div class="setting-item">
+                  <div>
+                    <div class="setting-label">Hide "Sort by" Dropdown</div>
+                    <div class="setting-description">Remove the "Sort by" dropdown</div>
+                  </div>
+                  <div class="toggle active" id="hideDropdown">
+                    <div class="toggle-slider"></div>
+                  </div>
+                </div>
+                <div class="setting-item">
+                  <div>
+                    <div class="setting-label">Hide Layout Aside</div>
+                    <div class="setting-description">Remove sidebar distractions</div>
+                  </div>
+                  <div class="toggle active" id="hideLayoutAside">
+                    <div class="toggle-slider"></div>
+                  </div>
+                </div>
+                <div class="setting-item">
+                  <div>
+                    <div class="setting-label">Hide Sidebar</div>
+                    <div class="setting-description">Remove sidebar distractions</div>
+                  </div>
+                  <div class="toggle active" id="hideSidebar">
+                    <div class="toggle-slider"></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="setting-item">
-              <div>
-                <div class="setting-label">Hide Feed Entry</div>
-                <div class="setting-description">Remove the "Start a post" creation box</div>
-              </div>
-              <div class="toggle active" id="hideFeedEntry">
-                <div class="toggle-slider"></div>
-              </div>
-            </div>
-            <div class="setting-item">
-              <div>
-                <div class="setting-label">Hide "Sort by" Dropdown</div>
-                <div class="setting-description">Remove the "Sort by" dropdown</div>
-              </div>
-              <div class="toggle active" id="hideDropdown">
-                <div class="toggle-slider"></div>
-              </div>
-            </div>
-            <div class="setting-item">
-              <div>
-                <div class="setting-label">Hide Layout Aside</div>
-                <div class="setting-description">Remove sidebar distractions</div>
-              </div>
-              <div class="toggle active" id="hideLayoutAside">
-                <div class="toggle-slider"></div>
-              </div>
-            </div>
-            <div class="setting-item">
-              <div>
-                <div class="setting-label">Hide Sidebar</div>
-                <div class="setting-description">Remove sidebar distractions</div>
-              </div>
-              <div class="toggle active" id="hideSidebar">
-                <div class="toggle-slider"></div>
+
+            <div class="platform-settings disabled">
+              <div class="platform-header">
+                <div class="platform-icon">?</div>
+                <div class="platform-info">
+                  <div class="platform-name">Other Platforms</div>
+                  <div class="platform-status coming-soon">Coming Soon</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1566,7 +1893,6 @@
       </div>
     </div>
 
-    <!-- Date Picker Modal -->
     <div
       id="modalOverlay"
       style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000"></div>
