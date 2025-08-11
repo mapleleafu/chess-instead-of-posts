@@ -36,7 +36,7 @@ const loadTemplate = async templateName => {
     templates[templateName] = html;
     return html;
   } catch (error) {
-    console.error(`Failed to load template ${templateName}:`, error);
+    console.log(`Failed to load template ${templateName}:`, error);
     return "";
   }
 };
@@ -195,7 +195,7 @@ const updateRatingCards = async (hideRatingChange = false) => {
     userTierIcon: userTier.icon,
     userTierName: userTier.name,
     ratingChangeHtml,
-    puzzleRating: puzzleState.rating,
+    puzzleRating: Math.round(puzzleState.rating),
     puzzleDiffColor: puzzleDiff?.color || "",
     puzzleDiffLabel: puzzleDiff?.label || "",
     difficultyIcon: getDifficultyIcon(puzzleDiff?.label),
@@ -349,11 +349,12 @@ const savePuzzleAttempt = async options => {
     const existingIndex = attempts.findIndex(attempt => attempt.puzzleId === puzzleState.id);
 
     const attempt = {
-      fen: puzzleState.fen,
+      puzzleMoves: puzzleState.moves,
+      puzzleFen: puzzleState.fen,
       puzzleId: puzzleState.id,
-      timeSpentSeconds: (Date.now() - puzzleState.startTime) / 1000,
       puzzleRating: puzzleState.rating,
       puzzleRatingDeviation: puzzleState.ratingDeviation,
+      timeSpentSeconds: (Date.now() - puzzleState.startTime) / 1000,
       isSolved,
       timestamp: new Date().toISOString(),
       isFinished: isSolved || isFinished,
@@ -474,27 +475,6 @@ const loadPuzzlesFromCSV = async () => {
   await chrome.storage.local.set({ puzzles, totalPuzzles: puzzles.length });
 
   return { puzzles, totalPuzzles: puzzles.length };
-};
-
-const getDailyChess = async () => {
-  let result = await chrome.storage.local.get(["puzzles", "totalPuzzles"]);
-
-  if (!result.puzzles || !result.totalPuzzles) {
-    for (let i = 0; i < 3; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      result = await chrome.storage.local.get(["puzzles", "totalPuzzles"]);
-      if (result.puzzles && result.totalPuzzles) break;
-    }
-
-    if (!result.puzzles || !result.totalPuzzles) {
-      result = await loadPuzzlesFromCSV();
-    }
-  }
-
-  const today = new Date().setHours(0, 0, 0, 0);
-  const daysSinceRelease = Math.floor((today - RELEASE_DATE) / (1000 * 60 * 60 * 24));
-  const puzzleIndex = daysSinceRelease % result.totalPuzzles;
-  return result.puzzles[puzzleIndex];
 };
 
 const initiatePuzzle = () => {
@@ -680,7 +660,7 @@ const formatPuzzleDuration = secs => {
   return `${m}m ${r.toString().padStart(2, "0")}s`;
 };
 
-const createCompletionMessage = async (dailyChess, mutationDetected, puzzleAttempt) => {
+const createCompletionMessage = async (puzzle, mutationDetected) => {
   const mainFeed = document.querySelector("main");
   if (!mainFeed) return;
 
@@ -692,11 +672,11 @@ const createCompletionMessage = async (dailyChess, mutationDetected, puzzleAttem
   applyContainerStyles(container);
   container.classList.add("completion-container");
 
-  const difficulty = getPuzzleDifficulty(dailyChess.rating);
+  const difficulty = getPuzzleDifficulty(puzzle.puzzleRating);
   const userRating = Math.round(userState.rating?.getRating() || 1500);
-  const isSuccess = !!puzzleAttempt?.isSolved;
-  const timeSpent = formatPuzzleDuration(puzzleAttempt?.timeSpentSeconds);
-  const ratingDelta = puzzleAttempt?.ratingChange ? Math.round(puzzleAttempt.ratingChange) : null;
+  const isSuccess = !!puzzle?.isSolved;
+  const timeSpent = formatPuzzleDuration(puzzle?.timeSpentSeconds);
+  const ratingDelta = puzzle?.ratingChange ? Math.round(puzzle.ratingChange) : null;
   const userTier = getUserTier(userRating);
 
   const statusIcon = isSuccess ? "🏆" : "🧩";
@@ -721,7 +701,7 @@ const createCompletionMessage = async (dailyChess, mutationDetected, puzzleAttem
     userTierIcon: userTier.icon,
     userTierName: userTier.name,
     ratingDeltaHtml,
-    puzzleRating: dailyChess.rating || "—",
+    puzzleRating: Math.round(puzzle.puzzleRating) || "—",
     difficultyColor: difficulty.color,
     difficultyLabel: difficulty.label,
     timeSpent,
@@ -751,7 +731,7 @@ const createCompletionMessage = async (dailyChess, mutationDetected, puzzleAttem
   if (solveAgainBtn) {
     solveAgainBtn.addEventListener("click", async () => {
       const settings = await getSettings();
-      await setupPuzzle(dailyChess, settings, mutationDetected, puzzleAttempt);
+      await setupPuzzle(puzzle, settings, mutationDetected);
     });
   }
 };
@@ -871,7 +851,7 @@ const createDebugButtons = async container => {
   if (generateDataBtn) {
     generateDataBtn.addEventListener("click", async () => {
       try {
-        const { puzzles, finalRating } = generatePuzzleDataSet(200);
+        const { puzzles, finalRating } = await generatePuzzleDataSet(200);
 
         await chrome.storage.local.set({ puzzleAttempts: puzzles });
         await chrome.storage.local.get("userRating", result => {
@@ -886,7 +866,7 @@ const createDebugButtons = async container => {
           generateDataBtn.textContent = "Generate Test Data";
         }, 2000);
       } catch (error) {
-        console.error("Failed to generate test data:", error);
+        console.log("Failed to generate test data:", error);
         generateDataBtn.textContent = "❌ Failed";
 
         setTimeout(() => {
@@ -1434,51 +1414,148 @@ const applyPuzzleSettings = (settings, mutationDetected = false) => {
   }
 };
 
-const setupPuzzle = async (dailyChess, settings = {}, mutationDetected = false, puzzleAttempt = null) => {
-  puzzleState.moves = dailyChess.moves ? dailyChess.moves.split(" ") : [];
-  puzzleState.id = dailyChess.id || null;
-  puzzleState.fen = dailyChess.fen || null;
-  puzzleState.rating = dailyChess.rating || null;
-  puzzleState.ratingDeviation = dailyChess.ratingDeviation || null;
-  userState.isRatingUpdated = puzzleAttempt?.isUserRatingUpdated || false;
-  userState.ratingChange = puzzleAttempt?.ratingChange || null;
+const setupPuzzle = async (puzzle, settings = {}, mutationDetected = false) => {
+  puzzleState.moves = puzzle.puzzleMoves?.split?.(" ") || puzzle.puzzleMoves || [];
+  puzzleState.id = puzzle.puzzleId || null;
+  puzzleState.fen = puzzle.puzzleFen || null;
+  puzzleState.rating = puzzle.puzzleRating || null;
+  puzzleState.ratingDeviation = puzzle.puzzleRatingDeviation || null;
+  userState.isRatingUpdated = puzzle?.isUserRatingUpdated || false;
+  userState.ratingChange = puzzle?.ratingChange || null;
   puzzleState.isPuzzleMode = true;
   puzzleState.startTime = Date.now();
   puzzleState.currentMoveIndex = 0;
   puzzleState.hasIncorrectMoves = false;
 
-  await createChessboard(dailyChess.fen);
+  await createChessboard(puzzle.puzzleFen);
   initiatePuzzle();
   applyPuzzleSettings(settings, mutationDetected);
 };
 
 const getSettings = async () => {
   const { settings } = await chrome.storage.local.get("settings");
-  return settings || {};
+
+  const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+
+  if (!settings || Object.keys(settings).length < Object.keys(DEFAULT_SETTINGS).length) {
+    await chrome.storage.local.set({ settings: mergedSettings });
+  }
+
+  return mergedSettings;
+};
+
+const ensurePuzzlesLoaded = async () => {
+  let { puzzles, totalPuzzles } = await chrome.storage.local.get(["puzzles", "totalPuzzles"]);
+
+  if (!puzzles || !totalPuzzles) {
+    for (let retry = 0; retry < 3 && !puzzles; retry++) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      ({ puzzles, totalPuzzles } = await chrome.storage.local.get(["puzzles", "totalPuzzles"]));
+    }
+
+    if (!puzzles) {
+      ({ puzzles } = await loadPuzzlesFromCSV());
+    }
+  }
+
+  return puzzles;
+};
+
+const getPuzzleForToday = data => {
+  const todaysPuzzle = getTodaysPuzzleAttempt(data.puzzleAttempts);
+
+  if (todaysPuzzle) {
+    return { puzzle: todaysPuzzle, alreadySolved: todaysPuzzle.isFinished };
+  }
+
+  const puzzle = data.settings.puzzleMode === "adaptive" ? getAdaptivePuzzle(data) : getDailyPuzzle(data.puzzles);
+  const formattedPuzzle = formatPuzzle(puzzle);
+
+  return { puzzle: formattedPuzzle, alreadySolved: false };
+};
+
+const formatPuzzle = puzzle => {
+  return {
+    puzzleId: puzzle.id,
+    puzzleFen: puzzle.fen,
+    puzzleMoves: puzzle.moves,
+    puzzleRating: puzzle.rating,
+    puzzleRatingDeviation: puzzle.ratingDeviation,
+  };
+};
+
+const getTodaysPuzzleAttempt = puzzleAttempts => {
+  const today = new Date().setHours(0, 0, 0, 0);
+
+  return puzzleAttempts.find(attempt => {
+    const attemptDate = new Date(attempt.timestamp).setHours(0, 0, 0, 0);
+    return attemptDate === today;
+  });
+};
+
+const getAdaptivePuzzle = data => {
+  const targetRating = data.userRating?.rating || DEFAULT_PUZZLE_RATING;
+  const solvedIds = new Set(data.puzzleAttempts.map(a => a.puzzleId).filter(Boolean));
+  const unsolvedPuzzles = data.puzzles.filter(p => !solvedIds.has(p.id) && p.rating);
+
+  if (unsolvedPuzzles.length === 0) {
+    return getDailyPuzzle(data.puzzles);
+  }
+
+  return unsolvedPuzzles.reduce((closest, puzzle) => {
+    const currentDiff = Math.abs(puzzle.rating - targetRating);
+    const closestDiff = Math.abs(closest.rating - targetRating);
+    return currentDiff < closestDiff ? puzzle : closest;
+  });
+};
+
+const getDailyPuzzle = puzzles => {
+  const today = new Date().setHours(0, 0, 0, 0);
+  const daysSinceRelease = Math.floor((today - RELEASE_DATE) / (1000 * 60 * 60 * 24));
+  const puzzleIndex = daysSinceRelease % puzzles.length;
+  return puzzles[puzzleIndex];
+};
+
+const loadAllData = async () => {
+  const [settings, { puzzleAttempts = [] }, { userRating }, puzzles] = await Promise.all([
+    getSettings(),
+    chrome.storage.local.get("puzzleAttempts"),
+    chrome.storage.local.get("userRating"),
+    ensurePuzzlesLoaded(),
+  ]);
+
+  return { settings, puzzleAttempts, userRating, puzzles };
 };
 
 const main = async (mutationDetected = false) => {
   if (!checkSite()) return;
 
-  const settings = await getSettings();
-  if (settings?.extensionDisabled) {
+  const data = await loadAllData();
+
+  if (data.settings?.extensionDisabled) {
     restoreLinkedInFeed();
     return;
   }
 
   await initializeUserRating();
-  applyGeneralSettings(settings);
-  if (settings?.dailyPuzzlesDisabled) return;
+  applyGeneralSettings(data.settings);
+  if (data.settings?.dailyPuzzlesDisabled) return;
 
-  const dailyChess = await getDailyChess();
-  const puzzleAttempt = await checkPuzzleSolved(dailyChess.fen, dailyChess.id);
+  const { puzzle, alreadySolved } = getPuzzleForToday(data);
 
-  if (puzzleAttempt?.isFinished) {
-    createCompletionMessage(dailyChess, mutationDetected, puzzleAttempt);
+  if (alreadySolved) {
+    createCompletionMessage(puzzle, mutationDetected);
     return;
   }
 
-  await setupPuzzle(dailyChess, settings, mutationDetected, puzzleAttempt);
+  const puzzleAttempt = data.puzzleAttempts.find(a => a.puzzleId === puzzle.id || a.puzzleFen === puzzle.fen);
+
+  if (puzzleAttempt?.isFinished) {
+    createCompletionMessage(puzzle, mutationDetected, puzzleAttempt);
+    return;
+  }
+
+  await setupPuzzle(puzzle, data.settings, mutationDetected);
 };
 
 const observer = new MutationObserver(mutations => {
