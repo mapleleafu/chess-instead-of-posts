@@ -4,8 +4,9 @@
 
 # Chess Instead of Posts
 
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-purple?logo=google-chrome)](https://chrome.google.com/webstore)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chrome.google.com/webstore)
+[![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add%20ons-orange?logo=firefox)](https://addons.mozilla.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 *Transform your social media into chess mastery. One puzzle at a time.*
 
@@ -29,7 +30,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 
 <table>
 <tr>
-<td width="50%">
+<td width="33%">
 
 ### 🧩 **Smart Puzzle Matching**
 - **Adaptive Mode**: Puzzles scale with your rating
@@ -37,7 +38,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Beginner to grandmaster difficulty
 
 </td>
-<td width="50%">
+<td width="33%">
 
 ### 📊 **Comprehensive Analytics** 
 - Real-time rating tracking
@@ -45,9 +46,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Performance insights
 
 </td>
-</tr>
-<tr>
-<td>
+<td width="33%">
 
 ### 💰 **Completely Free**
 - No premium features
@@ -55,12 +54,22 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 - Full functionality for everyone
 
 </td>
-<td>
+</tr>
+<tr>
+<td width="50%">
 
 ### 🏆 **8-Tier Progression**
 - Beginner → Grandmaster
 - Visual badges & milestones
 - Clear improvement goals
+
+</td>
+<td width="50%">
+
+### 🧘 **Distraction-Free Experience**
+- **Zen Mode**: Board-only focus
+- **Instant Blocking**: No feed flash
+- Clean, minimal interface
 
 </td>
 </tr>
@@ -96,7 +105,8 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 
 ## 🔧 Installation
 
-**[Chrome Web Store](https://chrome.google.com/webstore)** *(link coming soon)*
+**[Chrome Web Store](https://chrome.google.com/webstore)** *(link coming soon)*  
+**[Firefox Add-ons](https://addons.mozilla.org)** *(link coming soon)*
 
 <details>
 <summary><strong>📦 Install from source</strong></summary>
