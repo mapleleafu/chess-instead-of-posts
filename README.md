@@ -4,7 +4,7 @@
 
 # Chess Instead of Posts
 
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chrome.google.com/webstore)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-blue?logo=google-chrome)](https://chromewebstore.google.com/detail/chess-instead-of-posts/jaagjgijdgnpfmmjnkdeianmmhebfglf)
 [![Firefox Add-ons](https://img.shields.io/badge/Firefox-Add%20ons-orange?logo=firefox)](https://addons.mozilla.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
@@ -102,7 +102,7 @@ Instead of getting lost in endless social media posts, you'll solve chess puzzle
 
 ## 🔧 Installation
 
-**[Chrome Web Store](https://chrome.google.com/webstore)** *(link coming soon)*  
+**[Chrome Web Store](https://chromewebstore.google.com/detail/chess-instead-of-posts/jaagjgijdgnpfmmjnkdeianmmhebfglf)**  
 **[Firefox Add-ons](https://addons.mozilla.org)** *(link coming soon)*
 
 <details>
