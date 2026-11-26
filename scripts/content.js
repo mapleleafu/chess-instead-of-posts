@@ -55,13 +55,33 @@ const renderTemplate = (template, data) => {
 
 const checkSite = () => window.location.href.includes("linkedin.com/feed");
 
+const querySelectorSafe = selector => {
+  try {
+    return document.querySelector(selector);
+  } catch {
+    return null;
+  }
+};
+
+const querySelectorAllSafe = selector => {
+  try {
+    return [...document.querySelectorAll(selector)];
+  } catch {
+    return [];
+  }
+};
+
+const findSortByDropdown = () => {
+  return [...document.querySelectorAll('main [role="button"][aria-expanded]')].find(element => /^Sort by/.test(element.innerText?.trim()));
+};
+
 const restoreLinkedInFeed = () => {
   const existingContainer = document.getElementById("chess-container");
   if (existingContainer) {
     existingContainer.remove();
   }
 
-  const feedElement = document.querySelector(LINKEDIN_FEED_SELECTOR);
+  const feedElement = querySelectorSafe(LINKEDIN_FEED_SELECTOR);
   if (feedElement) {
     feedElement.style.display = "";
   }
@@ -886,8 +906,7 @@ const removeExistingElements = () => {
   const existing = document.getElementById("chess-container");
   if (existing) existing.remove();
 
-  const existingScroll = document.querySelector(POST_CLASS_NAME);
-  if (existingScroll) existingScroll.remove();
+  querySelectorAllSafe(POST_CLASS_NAME).forEach(element => element.remove());
 };
 
 const createBoardContainer = () => {
@@ -1387,22 +1406,19 @@ const toggleZenMode = () => {
 
 const applyGeneralSettings = settings => {
   if (settings?.hideLayoutAside) {
-    const layoutRef = document.querySelector(LAYOUT_ASIDE);
-    if (layoutRef) layoutRef.remove();
+    querySelectorAllSafe(LAYOUT_ASIDE).forEach(element => element.remove());
   }
 
   if (settings?.hideSidebar) {
-    const sidebarRef = document.querySelector(LAYOUT_SIDEBAR);
-    if (sidebarRef) sidebarRef.remove();
+    querySelectorAllSafe(LAYOUT_SIDEBAR).forEach(element => element.remove());
   }
 
   if (settings?.hideFeedEntry) {
-    const feedEntry = document.querySelector(LINKEDIN_FEED_ENTRY);
-    if (feedEntry) feedEntry.remove();
+    querySelectorAllSafe(LINKEDIN_FEED_ENTRY).forEach(element => element.remove());
   }
 
   if (settings?.hideDropdown) {
-    const dropdown = document.querySelector(LINKEDIN_FEED_DROPDOWN);
+    const dropdown = findSortByDropdown() || querySelectorSafe(LINKEDIN_FEED_DROPDOWN);
     if (dropdown) dropdown.remove();
   }
 };

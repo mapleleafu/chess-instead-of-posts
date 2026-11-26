@@ -1,10 +1,13 @@
-const LINKEDIN_FEED_SELECTOR = '.scaffold-finite-scroll__content[data-finite-scroll-hotkey-context="FEED"]';
-const LINKEDIN_FEED_ENTRY = ".share-box-feed-entry__closed-share-box";
+const LINKEDIN_FEED_SELECTOR =
+  '.scaffold-finite-scroll__content[data-finite-scroll-hotkey-context="FEED"], [componentkey="container-update-list_mainFeed-lazy-container"], [componentkey*="FeedType_MAIN_FEED_RELEVANCE"], [data-testid="mainFeed"] [role="listitem"]';
+const LINKEDIN_FEED_ENTRY =
+  '.share-box-feed-entry__closed-share-box, [componentkey="container-update-list_mainFeed-lazy-container"] > div:first-child, [componentkey="container-update-list_mainFeed-lazy-container"] > div:nth-child(3)';
 const LINKEDIN_FEED_DROPDOWN = ".artdeco-dropdown:has(.feed-index-sort-border)";
 
-const LAYOUT_ASIDE = ".scaffold-layout__aside";
-const LAYOUT_SIDEBAR = ".scaffold-layout__sidebar";
-const POST_CLASS_NAME = ".scaffold-finite-scroll";
+const LAYOUT_ASIDE = '.scaffold-layout__aside, aside[aria-label="Aside"]';
+const LAYOUT_SIDEBAR = '.scaffold-layout__sidebar, aside[aria-label="Sidebar"]';
+const POST_CLASS_NAME =
+  '.scaffold-finite-scroll, [componentkey="container-update-list_mainFeed-lazy-container"], [componentkey="container-update-list_mainFeed-lazy-container"] [role="progressbar"], [componentkey*="FeedType_MAIN_FEED_RELEVANCE"], [data-testid="mainFeed"] [role="listitem"]';
 
 const RELEASE_DATE = new Date("2025-08-01").getTime();
 const DEFAULT_PUZZLE_RATING = 1500;

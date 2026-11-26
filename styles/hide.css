@@ -1,4 +1,18 @@
 /* Hide the main LinkedIn feed posts */
-.scaffold-finite-scroll__content[data-finite-scroll-hotkey-context="FEED"] {
+.scaffold-finite-scroll__content[data-finite-scroll-hotkey-context="FEED"],
+[componentkey="container-update-list_mainFeed-lazy-container"],
+[componentkey*="FeedType_MAIN_FEED_RELEVANCE"],
+[data-testid="mainFeed"] [role="listitem"] {
   display: none !important;
+}
+
+[componentkey="container-update-list_mainFeed-lazy-container"] > div:first-child,
+[componentkey="container-update-list_mainFeed-lazy-container"] > div:nth-child(3),
+[componentkey="container-update-list_mainFeed-lazy-container"] > div:last-child,
+[componentkey="container-update-list_mainFeed-lazy-container"] [role="progressbar"] {
+  display: none !important;
+}
+
+main {
+  grid-template-rows: 0 auto !important;
 }
